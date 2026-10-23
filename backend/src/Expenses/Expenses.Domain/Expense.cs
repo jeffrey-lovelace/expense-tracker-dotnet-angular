@@ -51,13 +51,13 @@ public sealed class Expense
         Guid userId,
         string description,
         decimal amount,
-        ExpenseCategory category,
+        string category,
         DateOnly date,
         DateTimeOffset now) =>
         throw new NotImplementedException();
 
     /// <summary>Applies an update with the same rules as <see cref="Create"/>.</summary>
-    public Result Update(string description, decimal amount, ExpenseCategory category, DateOnly date, DateTimeOffset now) =>
+    public Result Update(string description, decimal amount, string category, DateOnly date, DateTimeOffset now) =>
         throw new NotImplementedException();
 
     /// <summary>

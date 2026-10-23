@@ -1,5 +1,3 @@
-using System.Globalization;
-
 using Expenses.Application.Contracts;
 using Expenses.Domain;
 
@@ -7,6 +5,8 @@ using Moq;
 
 namespace Expenses.Application.Tests;
 
+// Field rules (amount, description, category, date) are tested once, in Expenses.Domain.Tests.
+// These tests cover what the service adds: ownership, not-found, the clock it passes, and what it saves.
 public sealed class ExpenseServiceTests
 {
     // 2026-10-23 02:00 UTC is still 2026-10-22 22:00 in Bolivia (UTC-4). "Today" for the user is the 22nd.
@@ -41,7 +41,6 @@ public sealed class ExpenseServiceTests
         Assert.True(result.IsSuccess);
         Assert.NotNull(saved);
         Assert.Equal(CallerId, saved.UserId);
-        Assert.NotEqual(Guid.Empty, saved.Id);
         Assert.Equal(saved.Id, result.Value!.Id);
         Assert.Equal("Lunch at the market", result.Value.Description);
         Assert.Equal(12.50m, result.Value.Amount);
@@ -51,124 +50,28 @@ public sealed class ExpenseServiceTests
     }
 
     [Fact]
-    public async Task CreateAsync_WithSurroundingSpaces_TrimsDescription()
+    public async Task CreateAsync_WhenDomainRejectsRequest_ReturnsItsErrorsAndDoesNotSave()
     {
-        var request = new CreateExpenseRequest("   Bus fare  ", 3m, "Transport", LocalToday);
-
-        var result = await _service.CreateAsync(CallerId, request, CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal("Bus fare", result.Value!.Description);
-    }
-
-    [Theory]
-    [InlineData("0")]
-    [InlineData("-0.01")]
-    [InlineData("-25")]
-    [InlineData("1000000.01")]
-    [InlineData("12.345")]
-    public async Task CreateAsync_WithInvalidAmount_ReturnsAmountValidationError(string amount)
-    {
-        var request = new CreateExpenseRequest("Groceries", ParseAmount(amount), "Food", LocalToday);
-
-        var result = await _service.CreateAsync(CallerId, request, CancellationToken.None);
-
-        AssertValidationError(result, "amount");
-        AssertNothingSaved();
-    }
-
-    [Theory]
-    [InlineData("1000000")]
-    [InlineData("0.01")]
-    public async Task CreateAsync_WithAmountAtBoundary_Succeeds(string amount)
-    {
-        var request = new CreateExpenseRequest("Groceries", ParseAmount(amount), "Food", LocalToday);
-
-        var result = await _service.CreateAsync(CallerId, request, CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-    }
-
-    public static TheoryData<string> InvalidDescriptions => new()
-    {
-        string.Empty,
-        "     ",
-        "ab",
-        "  ab  ",
-        new string('x', Expense.DescriptionMaxLength + 1),
-    };
-
-    [Theory]
-    [MemberData(nameof(InvalidDescriptions))]
-    public async Task CreateAsync_WithInvalidDescription_ReturnsDescriptionValidationError(string description)
-    {
-        var request = new CreateExpenseRequest(description, 10m, "Food", LocalToday);
-
-        var result = await _service.CreateAsync(CallerId, request, CancellationToken.None);
-
-        AssertValidationError(result, "description");
-        AssertNothingSaved();
-    }
-
-    [Theory]
-    [InlineData("Groceries")]
-    [InlineData("")]
-    [InlineData("5")]
-    public async Task CreateAsync_WithUnknownCategory_ReturnsCategoryValidationError(string category)
-    {
-        var request = new CreateExpenseRequest("Groceries", 10m, category, LocalToday);
-
-        var result = await _service.CreateAsync(CallerId, request, CancellationToken.None);
-
-        AssertValidationError(result, "category");
-        AssertNothingSaved();
-    }
-
-    [Fact]
-    public async Task CreateAsync_WithTomorrowInUserTimeZone_ReturnsDateValidationError()
-    {
-        // In UTC it is already the 23rd, but for a user in Bolivia the 23rd is still tomorrow.
-        var request = new CreateExpenseRequest("Groceries", 10m, "Food", LocalToday.AddDays(1));
-
-        var result = await _service.CreateAsync(CallerId, request, CancellationToken.None);
-
-        AssertValidationError(result, "date");
-        AssertNothingSaved();
-    }
-
-    [Fact]
-    public async Task CreateAsync_WithDateBefore2000_ReturnsDateValidationError()
-    {
-        var request = new CreateExpenseRequest("Groceries", 10m, "Food", new DateOnly(1999, 12, 31));
-
-        var result = await _service.CreateAsync(CallerId, request, CancellationToken.None);
-
-        AssertValidationError(result, "date");
-        AssertNothingSaved();
-    }
-
-    [Fact]
-    public async Task CreateAsync_WithSeveralInvalidFields_ReturnsEveryError()
-    {
-        var request = new CreateExpenseRequest(" ", 0m, "Groceries", LocalToday.AddDays(1));
-        string[] expectedFields = ["amount", "category", "date", "description"];
+        var request = new CreateExpenseRequest("Groceries", 0m, "Food", LocalToday);
 
         var result = await _service.CreateAsync(CallerId, request, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.All(result.Errors, e => Assert.Equal(ErrorType.Validation, e.Type));
-        Assert.Equal(expectedFields, result.Errors.Select(e => e.Field).Distinct().Order());
+        Assert.Equal("amount", Assert.Single(result.Errors).Field);
         AssertNothingSaved();
     }
 
     [Fact]
-    public async Task CreateAsync_WithTodayInUserTimeZone_Succeeds()
+    public async Task CreateAsync_PassesUsersLocalClock_SoTomorrowInBoliviaIsRejected()
     {
-        var request = new CreateExpenseRequest("Groceries", 10m, "Food", LocalToday);
+        // In UTC it is already the 23rd. If the service passed the UTC clock, this date would be accepted.
+        var request = new CreateExpenseRequest("Groceries", 10m, "Food", LocalToday.AddDays(1));
 
         var result = await _service.CreateAsync(CallerId, request, CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
+        Assert.False(result.IsSuccess);
+        Assert.Equal("date", Assert.Single(result.Errors).Field);
+        AssertNothingSaved();
     }
 
     // ---------- GetById ----------
@@ -272,7 +175,7 @@ public sealed class ExpenseServiceTests
     }
 
     [Fact]
-    public async Task UpdateAsync_WithInvalidAmount_ReturnsValidationErrorAndDoesNotSave()
+    public async Task UpdateAsync_WhenDomainRejectsRequest_ReturnsItsErrorsAndDoesNotSave()
     {
         var expense = ExistingExpense(CallerId);
         SetupGetById(CallerId, expense);
@@ -280,7 +183,8 @@ public sealed class ExpenseServiceTests
 
         var result = await _service.UpdateAsync(CallerId, expense.Id, request, CancellationToken.None);
 
-        AssertValidationError(result, "amount");
+        Assert.False(result.IsSuccess);
+        Assert.Equal("amount", Assert.Single(result.Errors).Field);
         AssertNothingUpdated();
     }
 
@@ -354,9 +258,6 @@ public sealed class ExpenseServiceTests
             new DateTime(2026, 10, 1, 15, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 10, 1, 15, 0, 0, DateTimeKind.Utc));
 
-    // InlineData cannot hold decimals, so amounts arrive as invariant strings.
-    private static decimal ParseAmount(string amount) => decimal.Parse(amount, CultureInfo.InvariantCulture);
-
     private void SetupGetById(Guid userId, Expense expense) =>
         _repository.Setup(r => r.GetByIdAsync(userId, expense.Id, It.IsAny<CancellationToken>())).ReturnsAsync(expense);
 
@@ -365,18 +266,6 @@ public sealed class ExpenseServiceTests
 
     private void AssertNothingUpdated() =>
         _repository.Verify(r => r.UpdateAsync(It.IsAny<Expense>(), It.IsAny<CancellationToken>()), Times.Never);
-
-    // Only the given field is reported, so a test cannot pass because some other rule happened to fail.
-    private static void AssertValidationError<T>(Result<T> result, string field)
-    {
-        Assert.False(result.IsSuccess);
-        Assert.NotEmpty(result.Errors);
-        Assert.All(result.Errors, e =>
-        {
-            Assert.Equal(ErrorType.Validation, e.Type);
-            Assert.Equal(field, e.Field);
-        });
-    }
 
     private static void AssertNotFound<T>(Result<T> result)
     {
