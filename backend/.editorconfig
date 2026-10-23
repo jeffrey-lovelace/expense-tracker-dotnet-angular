@@ -363,6 +363,10 @@ dotnet_naming_style.s_camelcase.word_separator =
 dotnet_naming_style.s_camelcase.capitalization = camel_case
 
 
+# CA1716 protects Visual Basic callers from names like Error or Shared. The solution is C# only.
+[*.cs]
+dotnet_diagnostic.CA1716.severity = none
+
 # Test projects: AGENTS.md section 13 requires MethodName_Scenario_ExpectedResult names.
 [tests/**.cs]
 dotnet_diagnostic.CA1707.severity = none
