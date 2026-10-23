@@ -93,37 +93,42 @@ Scope required by the exercise:
 
 ```
 /
-  AGENTS.md  CLAUDE.md  README.md  PRESENTATION.md  GENAI.md
-  ExpenseTracker.sln
-  Directory.Build.props        # net8.0, Nullable, TreatWarningsAsErrors, analyzers
-  Directory.Packages.props     # central package versions
-  .editorconfig  .gitignore  .gitattributes
-  .env.example                 # only used by docker compose (optional)
-  src/
-    Shared/
-      Shared.Auth/             # JwtOptions, AddJwtAuthentication(), JwtTokenService, ClaimsPrincipal.TryGetUserId()
-      Shared.Web/              # hosting shared by both APIs: middleware order, CORS, exception handler, Swagger + JWT
-    Identity/
-      Identity.Domain/         # User entity, Email rules
-      Identity.Application/    # UserService, IUserRepository, IPasswordHasher, ITokenService, DTOs
-      Identity.Infrastructure/ # SqliteUserRepository, JwtTokenService, PasswordHasher adapter, DB initializer + seed
-      Identity.Api/            # AuthController, HealthController, Program.cs (composition root)
-    Expenses/
-      Expenses.Domain/         # Expense entity, ExpenseCategory, Result and Error
-      Expenses.Application/    # ExpenseService, IExpenseRepository, DTOs, queries
-      Expenses.Infrastructure/ # SqliteExpenseRepository, DB initializer + seed
-      Expenses.Api/            # ExpensesController, CategoriesController, Program.cs
-  tests/
-    Identity.Application.Tests/
-    Identity.Infrastructure.Tests/
-    Identity.Api.Tests/
-    Expenses.Domain.Tests/
-    Expenses.Application.Tests/
-    Expenses.Infrastructure.Tests/
-    Expenses.Api.Tests/
-    Architecture.Tests/        # optional, NetArchTest
-  web/                         # Angular application
-  docker/                      # optional Dockerfiles + nginx.conf
+  AGENTS.md  CLAUDE.md  README.md  PRESENTATION.md  GENAI.md  DESIGN.md
+  .gitignore  .gitattributes
+  .claude/settings.json          # UserPromptSubmit hook (section 15), no absolute paths
+  scripts/hooks/log-prompt.mjs   # writes docs/ai-prompt-log.md
+  docs/                          # database.md, ai-prompt-log.md
+  .github/workflows/             # AI code review on pull requests
+  backend/
+    ExpenseTracker.sln
+    Directory.Build.props        # net8.0, Nullable, TreatWarningsAsErrors, analyzers
+    Directory.Packages.props     # central package versions
+    .editorconfig
+    src/
+      Shared/
+        Shared.Auth/             # JwtOptions, AddJwtAuthentication(), JwtTokenService, ClaimsPrincipal.TryGetUserId()
+        Shared.Web/              # hosting shared by both APIs: middleware order, CORS, exception handler, Swagger + JWT
+      Identity/
+        Identity.Domain/         # User entity and rules, Result and Error
+        Identity.Application/    # AuthService, IUserRepository, IPasswordHasher, ITokenService, contracts
+        Identity.Infrastructure/ # SqliteUserRepository, AspNetPasswordHasher, JwtUserTokenService, migrator, seeder
+        Identity.Api/            # AuthController, HealthController, Program.cs (composition root)
+      Expenses/
+        Expenses.Domain/         # Expense entity, ExpenseCategory, Result and Error
+        Expenses.Application/    # ExpenseService, IExpenseRepository, list query, contracts
+        Expenses.Infrastructure/ # SqliteExpenseRepository, migrator, seeder
+        Expenses.Api/            # ExpensesController, CategoriesController, Program.cs
+    tests/
+      Shared.Auth.Tests/
+      Identity.Domain.Tests/
+      Identity.Application.Tests/
+      Identity.Infrastructure.Tests/
+      Identity.Api.Tests/
+      Expenses.Domain.Tests/
+      Expenses.Application.Tests/
+      Expenses.Infrastructure.Tests/
+      Expenses.Api.Tests/
+  frontend/                      # Angular application
 ```
 
 ### 3.1 Dependency rule (Clean Architecture)
@@ -211,15 +216,16 @@ refactor(expenses): share field validation between Create and Update
 
 ```bash
 # backend
+cd backend
 dotnet restore
 dotnet build            # must produce 0 warnings
 dotnet test             # all test projects
 
-dotnet run --project src/Identity/Identity.Api
-dotnet run --project src/Expenses/Expenses.Api
+dotnet run --project src/Identity/Identity.Api --launch-profile http   # http://localhost:5001
+dotnet run --project src/Expenses/Expenses.Api --launch-profile http   # http://localhost:5002
 
 # frontend
-cd web
+cd frontend
 npm ci
 npm start               # ng serve on 4200
 npm run lint
