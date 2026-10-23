@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Expenses.Application\Expenses.Application.csproj" />
+    <ProjectReference Include="..\Expenses.Infrastructure\Expenses.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Shared\Shared.Auth\Shared.Auth.csproj" />
+  </ItemGroup>
+
+</Project>
