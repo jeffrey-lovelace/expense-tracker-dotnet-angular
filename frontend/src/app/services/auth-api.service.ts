@@ -12,14 +12,14 @@ export class AuthApiService {
   private readonly baseUrl = `${inject(API_CONFIG).identityApiUrl}/auth`;
 
   login(request: LoginRequest): Observable<AuthResponse> {
-    throw new Error(`Not implemented: ${this.baseUrl} ${request.email}`);
+    return this.http.post<AuthResponse>(`${this.baseUrl}/login`, request);
   }
 
   register(request: RegisterRequest): Observable<AuthResponse> {
-    throw new Error(`Not implemented: ${this.baseUrl} ${request.email}`);
+    return this.http.post<AuthResponse>(`${this.baseUrl}/register`, request);
   }
 
   me(): Observable<User> {
-    throw new Error(`Not implemented: ${this.http}`);
+    return this.http.get<User>(`${this.baseUrl}/me`);
   }
 }
