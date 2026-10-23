@@ -17,3 +17,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Makes the implicit Program class visible to WebApplicationFactory<Program> in Identity.Api.Tests.
+public partial class Program;
