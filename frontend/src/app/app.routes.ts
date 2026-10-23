@@ -1,7 +1,20 @@
 import { Routes } from '@angular/router';
 
-// Every page is lazy loaded. The login, register and expenses routes arrive with their features (F2, F3).
+import { authGuard } from './auth/auth.guard';
+
+// Lazy at two levels: each area's routes (loadChildren) and each page (loadComponent) are separate chunks, so the
+// first load only carries the shell, and the expenses code is fetched after sign-in.
 export const routes: Routes = [
+  { path: '', pathMatch: 'full', redirectTo: 'expenses' },
+  {
+    path: '',
+    loadChildren: () => import('./pages/auth.routes').then((m) => m.authRoutes),
+  },
+  {
+    path: 'expenses',
+    canActivate: [authGuard],
+    loadChildren: () => import('./pages/expenses/expenses.routes').then((m) => m.expensesRoutes),
+  },
   {
     path: '**',
     title: 'Not found | Expense Tracker',
