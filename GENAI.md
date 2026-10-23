@@ -169,3 +169,81 @@ and added a rule to `AGENTS.md` that SQL lives only in the repositories.
 removing them.
 
 **Commits:** not committed yet
+
+### 06. Scaffold the .NET solution and the Angular app  (2026-10-22, Claude Code, branch `chore/infra-solution-scaffold`) (translated from Spanish)
+
+**Prompt (Jeff):**
+> Create the base .NET and Angular project. Just create it.
+
+Follow-ups during the step: "separate it into frontend/ and backend/", "create the gitignore", "run the projects",
+"commit please".
+
+**What the AI produced:** `backend/ExpenseTracker.sln` with `Shared.Auth`, Identity and Expenses (Domain, Application,
+Infrastructure, Api) and seven test projects, references following the dependency rule; `Directory.Build.props`
+(net8.0, warnings as errors, analyzers) and `Directory.Packages.props` (central package versions, template packages
+only); APIs on ports 5001 and 5002 with Swagger; `frontend/` with Angular 20.3 (standalone, SCSS, routing, no SSR);
+one root `.gitignore` and a `.gitattributes`. Template samples (WeatherForecast, Class1, UnitTest1) removed. The
+existing migration scripts were moved under `backend/` unchanged.
+
+**What was checked:** `dotnet build` 0 warnings, 0 errors. `dotnet test` runs (no tests yet). `ng build` succeeds.
+Both APIs (`/swagger`) and the Angular dev server returned HTTP 200. `git add --dry-run` confirmed `bin/`, `obj/`,
+`node_modules/`, `dist/` and `.angular/` are ignored.
+
+**Accepted / corrected / rejected:** Corrected by Jeff: the AI first followed the `AGENTS.md` layout (`src/`, `tests/`
+and `web/` at the root); Jeff asked to split it into `backend/` and `frontend/`. The AI pointed out that `AGENTS.md`
+(layout, commands, default branch `master` vs `main`) is now out of date; not updated yet.
+
+**Commits:** `613bf02`
+
+### 07. Add an AI code review workflow for pull requests  (2026-10-22, Claude Code, branch `chore/infra-solution-scaffold`) (translated from Spanish)
+
+**Prompt (Jeff):**
+> Can we create the ai-code-review.yml? For automatic reviews of the PRs.
+
+**What the AI produced:** `.github/workflows/ai-code-review.yml` using `anthropics/claude-code-action@v1` on non-draft
+PRs to `develop`, `master` and `main`. The review prompt checks the diff against `AGENTS.md` (forbidden libraries,
+parameterized SQL, `UserId` ownership filter, layer rules, async misuse, Angular rules, missing tests, secrets,
+emojis) and posts inline comments plus one summary comment. Tools are limited to reading code and commenting.
+
+**What was checked:** The first run on GitHub failed with `401 Unauthorized - Claude Code is not installed on this
+repository`. The AI explained the cause (the action exchanges its OIDC token for a Claude GitHub App token) and gave
+two fixes: install the app, or pass `github_token`. Jeff fixed the setup on GitHub and the check passed on PR #2.
+The AI noted that a green check alone does not prove the summary comment was posted.
+
+**Accepted / corrected / rejected:** Accepted by Jeff ("AI review configured and working").
+
+**Commits:** `11b3402`
+
+### 08. Label pull requests after the AI review  (2026-10-22, Claude Code, branch `chore/infra-solution-scaffold`) (translated from Spanish)
+
+**Prompt (Jeff):**
+> When the AI does its review, add a label.
+
+**What the AI produced:** A workflow step that runs only after the review step succeeds, creates the `ai-reviewed`
+label if missing (`gh label create --force`) and adds it to the PR with `GITHUB_TOKEN`. Added the `issues: write`
+permission needed to create labels.
+
+**What was checked:** Not verified in a workflow run during this session.
+
+**Accepted / corrected / rejected:** Pending review by Jeff. Merged into `develop` through PR #2 together with
+entries 06 and 07.
+
+**Commits:** `2c65b99`, merge `6ea3425`
+
+### 09. Switch to the feature branch for issue #1  (2026-10-23, Claude Code, branch `feature/1`) (translated from Spanish)
+
+**Prompt (Jeff):**
+> Now, to develop the functionality I created an issue with the presentation (issue #1). We must switch to the
+> branch feature/1.
+
+**What the AI produced:** Found that `origin/feature/1` pointed to `056a2b6`, created before the scaffold, so
+working on it as-is would have meant no projects. Since that commit is an ancestor of `develop`, it updated `develop`
+to `origin/develop` and fast-forwarded `feature/1` to it. Proposed an implementation order for the issue
+(Expenses domain, application, infrastructure, then Identity, APIs and frontend), tests first.
+
+**What was checked:** `git log --graph` shows `feature/1` at `6ea3425`, same as `develop`. Nothing overwritten.
+
+**Accepted / corrected / rejected:** Pending review by Jeff. Jeff reminded the AI to keep this log updated, which
+it had not done since entry 05.
+
+**Commits:** none (branch not pushed yet)
