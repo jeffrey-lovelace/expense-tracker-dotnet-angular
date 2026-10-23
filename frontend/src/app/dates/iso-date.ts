@@ -7,12 +7,15 @@ import { IsoDate } from '../models/expense.models';
 
 /** "yyyy-MM-dd" from the local calendar day of `date`. */
 export function toIsoDate(date: Date): IsoDate {
-  throw new Error(`Not implemented: ${date}`);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
 }
 
 /** Local midnight of an "yyyy-MM-dd" date (what the date picker shows). */
 export function fromIsoDate(value: IsoDate): Date {
-  throw new Error(`Not implemented: ${value}`);
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
 }
 
 /** Today in the user's time zone, as "yyyy-MM-dd". */

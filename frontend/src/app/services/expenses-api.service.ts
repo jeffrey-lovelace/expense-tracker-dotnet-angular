@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
@@ -12,22 +12,31 @@ export class ExpensesApiService {
   private readonly baseUrl = `${inject(API_CONFIG).expensesApiUrl}/expenses`;
 
   list(query: ExpenseListQuery): Observable<ExpenseList> {
-    throw new Error(`Not implemented: ${this.baseUrl} ${query.page} ${this.http}`);
+    // Unset filters are left out, so the API applies no condition for them.
+    let params = new HttpParams().set('page', query.page).set('pageSize', query.pageSize);
+    for (const key of ['category', 'from', 'to'] as const) {
+      const value = query[key];
+      if (value) {
+        params = params.set(key, value);
+      }
+    }
+
+    return this.http.get<ExpenseList>(this.baseUrl, { params });
   }
 
   get(id: string): Observable<Expense> {
-    throw new Error(`Not implemented: ${id}`);
+    return this.http.get<Expense>(`${this.baseUrl}/${encodeURIComponent(id)}`);
   }
 
   create(input: ExpenseInput): Observable<Expense> {
-    throw new Error(`Not implemented: ${input.description}`);
+    return this.http.post<Expense>(this.baseUrl, input);
   }
 
   update(id: string, input: ExpenseInput): Observable<Expense> {
-    throw new Error(`Not implemented: ${id} ${input.description}`);
+    return this.http.put<Expense>(`${this.baseUrl}/${encodeURIComponent(id)}`, input);
   }
 
   remove(id: string): Observable<void> {
-    throw new Error(`Not implemented: ${id}`);
+    return this.http.delete<void>(`${this.baseUrl}/${encodeURIComponent(id)}`);
   }
 }

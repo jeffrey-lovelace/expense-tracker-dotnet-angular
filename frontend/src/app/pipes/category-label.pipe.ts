@@ -6,6 +6,6 @@ import { Category } from '../models/expense.models';
 @Pipe({ name: 'categoryLabel' })
 export class CategoryLabelPipe implements PipeTransform {
   transform(value: string, categories: readonly Category[]): string {
-    throw new Error(`Not implemented: ${value} ${categories.length}`);
+    return categories.find((c) => c.value === value)?.label ?? value;
   }
 }

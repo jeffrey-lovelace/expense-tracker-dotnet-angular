@@ -12,6 +12,6 @@ export class CategoriesApiService {
   private readonly url = `${inject(API_CONFIG).expensesApiUrl}/categories`;
 
   list(): Observable<Category[]> {
-    throw new Error(`Not implemented: ${this.url} ${this.http}`);
+    return this.http.get<Category[]>(this.url);
   }
 }
