@@ -108,7 +108,7 @@ Scope required by the exercise:
       Identity.Infrastructure/ # SqliteUserRepository, JwtTokenService, PasswordHasher adapter, DB initializer + seed
       Identity.Api/            # AuthController, HealthController, Program.cs (composition root)
     Expenses/
-      Expenses.Domain/         # Expense entity, Money, ExpenseCategory, domain errors
+      Expenses.Domain/         # Expense entity, ExpenseCategory, Result and Error
       Expenses.Application/    # ExpenseService, IExpenseRepository, DTOs, queries
       Expenses.Infrastructure/ # SqliteExpenseRepository, DB initializer + seed
       Expenses.Api/            # ExpensesController, CategoriesController, Program.cs
@@ -179,7 +179,7 @@ TDD pairs look like this in history:
 ```
 test(expenses): add failing test for non-positive amount
 feat(expenses): reject non-positive amounts in Expense.Create
-refactor(expenses): extract amount validation into Money
+refactor(expenses): share field validation between Create and Update
 ```
 
 ### 4.4 Merging
@@ -380,6 +380,8 @@ Index: `IX_Expenses_UserId_ExpenseDate ON Expenses (UserId, ExpenseDate DESC, Cr
 Categories (fixed set, an enum in the Domain): `Food`, `Transport`, `Housing`, `Utilities`, `Health`,
 `Entertainment`, `Shopping`, `Education`, `Other`.
 
+Amount is stored in SQLite as INTEGER cents to avoid floating-point precision loss; the domain uses decimal.
+
 ### 9.3 How it works end to end
 
 1. Angular sends `POST /api/expenses` with `{ description, amount: 12.50, category: "Food", date: "2026-10-22" }` and the Bearer token.
@@ -391,13 +393,10 @@ Categories (fixed set, an enum in the Domain): `Food`, `Transport`, `Housing`, `
 
 Note: the JSON field stays `date` in the API contract; only the column is named `ExpenseDate` (clearer next to the SQL `date()` function).
 
-### 9.4 Business rules (Domain and Application)
+### 9.4 Business rules
 
-- Amount greater than 0, at most 1,000,000.00, at most 2 decimal places.
-- Description required, 3 to 200 characters after trimming.
-- Category must be one of the fixed set.
-- Date required, not in the future (compared with `TimeProvider`, which tests can fake), not before 2000-01-01.
-- A user can only read, update or delete their own expenses.
+Business rules live in the Domain. The full list, and which layer validates what, is in
+[section 10.10](#1010-validation-by-layer-and-business-rules).
 
 ### 9.5 API contract
 
@@ -435,7 +434,7 @@ Three patterns are required by Jeff and must be easy to point at in the code rev
 |---|---|---|
 | **Adapter** | `SqliteExpenseRepository` and `SqliteUserRepository` adapt ADO.NET to the `IExpenseRepository` / `IUserRepository` ports. `AspNetPasswordHasher` adapts `PasswordHasher<User>` to `IPasswordHasher`. `JwtTokenService` adapts `System.IdentityModel.Tokens.Jwt` to `ITokenService`. | The Application layer depends on our interfaces, not on third-party types. Swapping SQLite or the hasher touches one class. |
 | **Singleton** | Registered through DI lifetimes, never a hand-written static `Instance`: `ISqliteConnectionFactory` (stateless, holds only the connection string), `ITokenService` (holds immutable signing credentials), `IPasswordHasher`, `TimeProvider.System`. | One instance is safe because they are stateless or immutable and thread-safe. DI singletons stay replaceable in tests; a static singleton would not. |
-| **Factory** | `ISqliteConnectionFactory.Create()` builds a new `SqliteConnection` per operation. Static factory methods `Expense.Create(...)`, `User.Create(...)`, `Money.Create(...)` return `Result<T>`. `ProblemDetailsFactory` usage when mapping errors to HTTP. | Construction rules in one place: an invalid entity or a misconfigured connection cannot be created. |
+| **Factory** | `ISqliteConnectionFactory.Create()` builds a new `SqliteConnection` per operation. Static factory methods `Expense.Create(...)` and `User.Create(...)` return `Result<T>`. `ProblemDetailsFactory` usage when mapping errors to HTTP. | Construction rules in one place: an invalid entity or a misconfigured connection cannot be created. |
 
 Also used:
 
@@ -444,14 +443,14 @@ Also used:
 | Clean Architecture / Ports and Adapters | Whole solution | Business rules testable without database or HTTP. |
 | Repository | One interface per aggregate, explicit methods | No generic repository. |
 | Result pattern | `Result<T>` with typed `Error` (Validation, NotFound, Conflict, Unauthorized) | Expected failures are values, not exceptions. Mapped to HTTP in one place. |
-| Value object | `Money`, strongly typed ids | Rules for amounts in one place, ids cannot be mixed up. |
 | Options pattern | `JwtOptions`, `SeedOptions`, `CorsOptions` | Typed, validated configuration. |
 | Dependency injection | `Program.cs` composition root | Infrastructure registered only there. |
 | DTOs with manual mapping | Application layer | Explicit and readable. No AutoMapper. |
 | Middleware | Global exception handler, rate limiter, CORS | Cross-cutting concerns out of controllers. |
 
 Not used, on purpose: generic repository, Unit of Work (single-row operations), CQRS/Mediator (forbidden and
-unnecessary at this size), Specification, classic static Singleton.
+unnecessary at this size), Specification, classic static Singleton, value objects for money and strongly typed
+ids (plain `decimal` and `Guid` are enough at this scope; the amount rules live in `Expense`).
 
 ### 10.2 Frontend patterns
 
@@ -488,16 +487,13 @@ unnecessary at this size), Specification, classic static Singleton.
 
 | Kind | Type | Reason |
 |---|---|---|
-| `Money` | `readonly record struct` (wraps `decimal`, 16 bytes) | Small, immutable, value semantics, no heap allocation. |
-| Strongly typed ids (`ExpenseId`, `UserId`) | `readonly record struct` (wraps `Guid`) | Cannot pass a `UserId` where an `ExpenseId` is expected; no allocation. |
 | `Result<T>` and `Error` | `readonly record struct` / `sealed record` | Returned on every call; struct avoids an allocation per call. |
 | Entities (`Expense`, `User`) | `sealed class` | They have identity and a lifecycle; reference semantics is correct. |
 | Request/response DTOs | `sealed record` (class) | Immutable, value equality, serializer friendly. |
 
 Rules:
 
-- `default(Money)` and `default(ExpenseId)` bypass validation. Always create them through their factory; code that
-  receives them from outside the domain validates them.
+- `default(Result)` is a failure, never a silent success: `IsSuccess` is a stored flag, not "no errors".
 - Avoid boxing: do not store structs as `object` or cast them to interfaces in hot paths.
 - Keep structs small (16 bytes or less) and immutable (`readonly`).
 - Use `string` comparisons with an explicit `StringComparison`.
@@ -537,6 +533,77 @@ Frontend:
 - No manual `subscribe` in components when a signal or `toSignal` works. When needed, `takeUntilDestroyed()`.
 - Timers and DOM listeners registered through `DestroyRef.onDestroy` cleanup.
 - Stores in `providedIn: 'root'` hold only app state, cleared on logout.
+
+### 10.9 DTOs
+
+Entities never cross the Application boundary. Controllers receive request DTOs and return response DTOs only.
+
+Rules:
+
+- DTOs are `sealed record` types, immutable, in `*.Application/Contracts/`.
+- Nullable reference types express optionality (`string? Category` in a query, `string Description` in a request).
+- Mapping is manual, with small extension methods in `*.Application/Mapping/` (`expense.ToResponse()`). No AutoMapper.
+- Never return `PasswordHash`, fields the UI does not need, or another user's data.
+- JSON: camelCase, enums as strings (`JsonStringEnumConverter`), dates as `DateOnly` (`"2026-10-22"`), amounts as `decimal`.
+
+Expenses:
+
+| DTO | Fields |
+|---|---|
+| `CreateExpenseRequest` | `Description`, `Amount` (decimal), `Category` (string), `Date` (DateOnly) |
+| `UpdateExpenseRequest` | `Description`, `Amount`, `Category`, `Date` |
+| `ExpenseListQuery` | `Page` (default 1), `PageSize` (default 20), `Category?`, `From?`, `To?` |
+| `ExpenseResponse` | `Id`, `Description`, `Amount`, `Category`, `Date`, `CreatedAtUtc`, `UpdatedAtUtc` |
+| `ExpenseListResponse` | `Items` (`ExpenseResponse[]`), `Page`, `PageSize`, `TotalCount`, `TotalAmount` |
+| `CategoryResponse` | `Value`, `Label` |
+
+Identity:
+
+| DTO | Fields |
+|---|---|
+| `RegisterRequest` | `Email`, `DisplayName`, `Password` |
+| `LoginRequest` | `Email`, `Password` |
+| `AuthResponse` | `Token`, `ExpiresAtUtc`, `User` (`UserResponse`) |
+| `UserResponse` | `Id`, `Email`, `DisplayName` |
+
+### 10.10 Validation by layer and business rules
+
+Each rule is validated in exactly one layer (plus the database as a safety net). No rule is copied in two places
+in the backend.
+
+| Layer | Validates | How | Result |
+|---|---|---|---|
+| API | Shape of the request: valid JSON, correct types, route constraints (`{id:guid}`) | Model binding and `[ApiController]` | 400 `ProblemDetails` |
+| Application | Rules that need context or normalize input: email already registered, expense exists and belongs to the user, paging limits (page >= 1, page size 1 to 100), `From <= To`, category filter is a known value | Service code, returns `Result` | 400, 404, 409 |
+| Domain | Business rules and invariants of each entity | Factory methods and behavior methods return `Result` | 400 |
+| Database | The same invariants again, as defense in depth | `STRICT` tables, `CHECK`, `UNIQUE` | Should never trigger; if it does, it is a bug (500, logged) |
+| Frontend | The same field rules, only for user experience | Angular validators | Inline errors before sending |
+
+Domain business rules:
+
+**Expense**
+
+- Description: required, trimmed, 3 to 200 characters.
+- Amount: greater than 0, at most 1,000,000.00, at most 2 decimal places.
+- Category: one of `Food`, `Transport`, `Housing`, `Utilities`, `Health`, `Entertainment`, `Shopping`, `Education`, `Other`.
+- Date: not in the future (through `TimeProvider`), not before 2000-01-01.
+- Owner: set once at creation, never changed by `Update`. A user can only read, update or delete their own expenses.
+- `CreatedAtUtc` set at creation; `UpdatedAtUtc` set on every update; both from `TimeProvider`.
+
+**User**
+
+- Email: required, trimmed, normalized to lower case, valid format, at most 254 characters.
+- Display name: required, trimmed, 2 to 80 characters.
+- Password (validated before hashing, never stored): 8 to 128 characters, at least one upper case letter, one lower
+  case letter, one digit and one symbol.
+
+How validation errors are reported:
+
+- Factories collect **all** errors before returning, not only the first, so the form can show every invalid field at once.
+- Each error has a field, a code and a message: `Error.Validation("amount", "expense.amount.not_positive", "Amount must be greater than 0.")`.
+- The API returns them as `ProblemDetails` with an `errors` dictionary keyed by the camelCase JSON field name
+  (`{ "amount": ["Amount must be greater than 0."] }`), so Angular maps each message to its form control.
+- Every rule above has tests in `*.Domain.Tests`: the valid case and each invalid case.
 
 ## 11. Frontend Architecture
 
@@ -692,8 +759,8 @@ Wired into Material through the `typography` map of `mat.theme`.
 
 | Layer | Project | What | How |
 |---|---|---|---|
-| Domain | `*.Domain.Tests` | Entity factories and value objects | Pure unit tests |
-| Business logic | `*.Application.Tests` | Services: rules, ownership, error results | Moq for repositories, fake `TimeProvider` |
+| Domain | `*.Domain.Tests` | Entity factories and behavior methods: every business rule | Pure unit tests |
+| Business logic | `*.Application.Tests` | Services: ownership, not-found, orchestration. Domain rules are not re-tested here | Moq for repositories, fake `TimeProvider` |
 | Data access | `*.Infrastructure.Tests` | Repositories: SQL, mapping, cents conversion, user filtering | SQLite in-memory (shared cache, connection kept open per test) |
 | API | `*.Api.Tests` | Status codes, routing, auth (401 without token, 404 for other user's data), ProblemDetails | `WebApplicationFactory` with in-memory SQLite and a test JWT |
 | Architecture | `Architecture.Tests` (optional) | Layer dependency rules | NetArchTest |
@@ -719,6 +786,11 @@ Arrange / Act / Assert blocks separated by a blank line.
 
 At the end of every step, append one entry to **Part 2, section "Session log"** of `GENAI.md`, newest at the bottom.
 The log is evidence for the interview panel, so it must be honest and verifiable.
+
+Enforcement: `.claude/settings.json` registers a `Stop` hook (`scripts/hooks/require-genai-log.mjs`). If any file
+changed in the working tree is newer than `GENAI.md`, Claude Code is not allowed to finish the turn until the entry is
+written. Do not disable or bypass the hook. Entry numbers are sequential: read the last number in the file right before
+writing (another agent may have added one).
 
 Entry format:
 

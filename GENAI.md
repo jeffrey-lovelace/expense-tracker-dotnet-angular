@@ -57,6 +57,8 @@ This document has two parts:
    actually expresses the rule before accepting the implementation.
 4. **Log everything.** Every step adds an entry below with my prompt, what the AI produced, what was checked and
    what I accepted or corrected.
+   This is enforced, not left to memory: a Claude Code `Stop` hook (`scripts/hooks/require-genai-log.mjs`) blocks the
+   agent from finishing a turn while any changed file is newer than this log.
 
 ### 2.3 What I watch for in AI output
 
@@ -263,5 +265,108 @@ Added the same checks to the AI review prompt in `.github/workflows/ai-code-revi
 **What was checked:** Re-read section 11.2 for consistency with sections 2, 10.2 and 10.8. No code affected yet.
 
 **Accepted / corrected / rejected:** Jeff chose the RxJS scope and the loop syntax. Pending review of the final text.
+
+**Commits:** not committed yet
+
+### 11. Add rules for DTOs, business rules and data validation  (2026-10-23, Claude, branch `feature/1`)
+
+**Prompt (Jeff, partly translated from Spanish):**
+> Don't forget the backend rules: use DTOs, put the business rules in the Domain, perform data validation.
+
+**What the AI produced:** `AGENTS.md` sections 10.9 (DTO rules and the request and response DTOs of both APIs) and
+10.10 (which layer validates what, the complete Domain business rules for Expense and User, and the error format:
+all errors collected, returned as `ProblemDetails` keyed by camelCase field). Section 9.4 now points to 10.10 so the
+rules are written in one place only. Summary added to `PRESENTATION.md` section 3.
+
+**What was checked:** Consistency with the database constraints in `docs/database.md` and the API contract (section 9.5).
+
+**Accepted / corrected / rejected:** Pending review by Jeff.
+
+**Commits:** not committed yet
+
+### 12. Expenses: failing tests for ExpenseService (TDD red)  (2026-10-23, Claude Code, branch `feature/1`)
+
+**Prompt (Jeff):**
+> Let's start TDD on the Expenses context. Follow AGENTS.md. Create the Expense entity and domain exceptions
+> (ValidationException, NotFoundException), IExpenseRepository and the DTOs. Write failing unit tests first for
+> ExpenseService (create rules, NotFound for missing or other users' expenses, GetAll only returns the caller's).
+> Run them, show they fail, and stop. Do not implement ExpenseService yet.
+
+**What the AI produced:** The prompt conflicted with `AGENTS.md` in two points, so the AI asked first. Jeff chose
+the Result pattern over domain exceptions, and 3 to 200 characters for the description. Created in `Expenses.Domain`:
+`Expense` (private constructor, `Create`/`Update` stubs, `Rehydrate` for stored rows), `ExpenseCategory`, `Error`,
+`Result`/`Result<T>`. In `Expenses.Application`: `IExpenseRepository` (every read and delete takes the owner id),
+`Contracts/` DTOs (no `UserId` in requests), and an `ExpenseService` whose methods throw `NotImplementedException`.
+34 tests in `ExpenseServiceTests` with Moq and a hand-written `FixedTimeProvider` (no extra package).
+
+**What was checked:** Red run: 34 failed, 0 passed, all with `NotImplementedException`. `dotnet build` 0 warnings,
+`dotnet format --verify-no-changes` clean.
+
+**AI mistakes and fixes during the step:**
+- The first build failed on CA1000 (static factories on a generic type); the factories moved to the non-generic
+  `Result`. CA1716 (`Error` is a VB keyword) was suppressed on that type with a justification. CA1707 was turned off
+  for `tests/` only, because AGENTS.md requires `Method_Scenario_Result` names.
+- Jeff updated `AGENTS.md` (sections 10.9 and 10.10) during the step. The AI re-read it and found two differences
+  in its code: `Result` held a single error while factories must return all errors, and the DTOs were not in
+  `Contracts/`. Both fixed, and a test for several invalid fields at once was added.
+- `dotnet format` failed because the generated `.editorconfig` asked for CRLF and no final newline, contradicting
+  `.gitattributes` (LF). Changed to LF with a final newline.
+- The APIs started in step 06 were still running and locked the build output; the AI stopped them.
+
+**Open points for Jeff:** `AGENTS.md` 10.10 says every domain rule is tested in `Expenses.Domain.Tests`; these
+service tests cover the rules end to end through the service, as the prompt asked, and the domain tests are still
+to be written. `Amount` is a plain `decimal` and the ids are `Guid`, as the prompt specified, while `AGENTS.md`
+mentions `Money` and strongly typed ids.
+
+**Accepted / corrected / rejected:** Jeff chose the Result pattern and the 3 to 200 rule. Pending review of the tests.
+
+**Commits:** not committed yet
+
+### 13. Enforce the GenAI log with a Claude Code hook  (2026-10-23, Claude, branch `feature/1`)
+
+**Prompt (Jeff, translated from Spanish):**
+> What I do in Claude Code does not show up in GENAI.md.
+
+**What the AI produced:** Diagnosis: the log depended on the agent remembering a rule in `AGENTS.md`, which is not
+reliable (Jeff already had to remind it once, see entry 09), and two agents writing at the same time produced two
+entries numbered 11 (renumbered the Claude Code one to 12). Added a project `Stop` hook in `.claude/settings.json`
+that runs `scripts/hooks/require-genai-log.mjs` (Node.js, no dependencies, works on Windows). When Claude Code tries to
+finish a turn, the script compares the modification time of `GENAI.md` with every changed or untracked file reported
+by `git status`; if any is newer, it returns `{"decision": "block"}` with instructions to write the entry. It never
+blocks twice in the same turn (`stop_hook_active`) and does nothing outside a git repository. Updated `AGENTS.md`
+section 15 and `CLAUDE.md`.
+
+**What was checked:** Ran the script in a temporary git repository: clean tree (allowed), code changed after the log
+(blocked), second stop in the same turn (allowed), log updated after the code (allowed), new untracked file after
+the log (blocked), not a git repository (allowed, no output). Not yet verified inside a real Claude Code session on Windows.
+
+**AI mistake caught by the check:** The first version printed git's "not a git repository" error to the console;
+git's stderr is now ignored.
+
+**Accepted / corrected / rejected:** Pending review by Jeff.
+
+**Commits:** not committed yet
+
+### 12. Audit the backend against the exercise requirements  (2026-10-23, Claude Code, branch `feature/1`)
+
+**Prompt (Jeff):**
+> Before moving to the frontend, audit the backend against the exercise requirements. Don't change code yet,
+> report first. Run the build and the tests with coverage, answer a yes/no checklist with file references
+> (forbidden libraries, parameterized SQL, two APIs with controllers, UserId from the JWT, password hashing, layer
+> independence, no Expenses to Identity references, tests per layer, seed data, symlinks and secrets, CORS),
+> then list what is missing by priority and stop.
+
+**What the AI produced:** An audit report, no code changes. It arrived while the AI was in the middle of the
+previous request (move the rules into `Expense.Create` and the domain tests); that work was paused after the
+documentation part (removing `Money` and typed ids from `AGENTS.md` and `PRESENTATION.md`).
+
+**What was checked:** `dotnet build` 0 warnings. `dotnet test` with coverlet: 34 tests, all failing on purpose (red
+step), six test projects with no tests. Greps over `.csproj`, `Directory.Packages.props`, `src/` and tracked files.
+
+**Finding:** The backend is a scaffold plus the Expenses domain and service contracts. Most checklist items are not
+met yet because the code does not exist (no controllers, repositories, JWT, hashing, CORS or seed). The coverage
+figures for empty projects (100%) and stubs (40 to 60%) are not meaningful and were reported as such.
+
+**Accepted / corrected / rejected:** Pending review by Jeff.
 
 **Commits:** not committed yet

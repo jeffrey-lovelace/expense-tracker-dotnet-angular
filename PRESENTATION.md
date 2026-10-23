@@ -82,8 +82,13 @@ Key points:
 - **Patterns with a clear place**: Adapter (repositories and the password/JWT services adapt third-party APIs to
   our ports), Singleton through DI lifetimes for stateless services (never a static instance), Factory for
   connections and for entities that cannot be created invalid. Details in [AGENTS.md, section 10](AGENTS.md#10-design-patterns-and-engineering-principles).
-- **Value vs reference types on purpose**: `Money` and typed ids are `readonly record struct`; entities are sealed classes.
+- **Value vs reference types on purpose**: `Result` is a `readonly record struct`; entities are sealed classes. Ids are
+  plain `Guid` and amounts plain `decimal` (stored as integer cents); a Money type and typed ids were judged over-engineering for this scope.
 - **Async all the way** with cancellation tokens down to the database call, and every ADO.NET object disposed with `await using`.
+- **DTOs at the boundary**: controllers only see request and response records; entities never leave the Application layer.
+- **Business rules in the Domain**, and each validation in exactly one layer: the API checks the request shape, the
+  Application checks context (ownership, duplicate email, paging), the Domain checks the business rules, and the
+  database repeats the invariants as a safety net. All field errors are returned at once, keyed by field name.
 - **Result pattern instead of exceptions** for expected failures (validation, not found, conflict). The controller maps
   them to HTTP status codes in one place, so the behavior is predictable and easy to test.
 

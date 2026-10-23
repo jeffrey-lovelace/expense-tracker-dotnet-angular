@@ -12,3 +12,4 @@ All project instructions live in `AGENTS.md`. Follow them exactly; this file onl
 - Stop at the end of each step so Jeff can review before continuing.
 - This file is a regular file. Never replace it with a symlink.
 - At the end of every step, append an entry to the GenAI log in `GENAI.md` following `AGENTS.md` section 15.
+- A `Stop` hook (`.claude/settings.json`) blocks finishing a turn while `GENAI.md` is older than the changed files. Write the entry; never bypass the hook.
