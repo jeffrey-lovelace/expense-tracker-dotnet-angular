@@ -247,3 +247,21 @@ to `origin/develop` and fast-forwarded `feature/1` to it. Proposed an implementa
 it had not done since entry 05.
 
 **Commits:** none (branch not pushed yet)
+
+### 10. Add frontend rules: RxJS, @for track, interceptors, three files per component  (2026-10-23, Claude Code, branch `feature/1`)
+
+**Prompt (Jeff):**
+> Frontend rules: use RxJS, track by in ngFor, interceptors. Work with html, scss, ts.
+
+**What the AI produced:** Two of the rules conflicted with `AGENTS.md` ("RxJS only at the HTTP boundary", "no
+`*ngFor`"), so the AI asked before editing. Jeff chose RxJS for async flows with signals for state, and `@for` with
+`track` instead of `*ngFor` with `trackBy`. Updated `AGENTS.md` (stack table and section 11.2): three files per
+component (`.ts`, `.html`, `.scss`, no inline templates or styles), every `@for` tracks a stable id, RxJS operators
+in services and stores exposed as signals, functional interceptors registered once in order (auth, then error).
+Added the same checks to the AI review prompt in `.github/workflows/ai-code-review.yml`.
+
+**What was checked:** Re-read section 11.2 for consistency with sections 2, 10.2 and 10.8. No code affected yet.
+
+**Accepted / corrected / rejected:** Jeff chose the RxJS scope and the loop syntax. Pending review of the final text.
+
+**Commits:** not committed yet

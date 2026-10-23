@@ -79,7 +79,7 @@ Scope required by the exercise:
 |---|---|---|
 | Framework | Angular 20, standalone components only | No NgModules. |
 | UI library | Angular Material 20 (Material 3) | Custom theme, see section 11. Not the default look. |
-| Reactivity | Signals (`signal`, `computed`, `input()`, `output()`, `model()`) | RxJS only at the HTTP boundary. |
+| Reactivity | RxJS for async flows + Signals for state (`signal`, `computed`, `input()`, `output()`, `model()`) | RxJS operators in services and stores; state exposed to templates as signals (`toSignal`). See section 11.2. |
 | Change detection | `OnPush` on every component | Enforced by ESLint. |
 | Forms | Typed Reactive Forms | Server validation errors mapped back into the form. |
 | HTTP | `HttpClient` with functional interceptors | Only inside `services/`. |
@@ -578,7 +578,19 @@ app/
 ### 11.2 Rules
 
 - Every component: `standalone`, `ChangeDetectionStrategy.OnPush`, `input()` / `output()` functions, `inject()`.
-- Templates use the built-in control flow (`@if`, `@for` with `track`, `@defer` where useful). No `*ngIf`/`*ngFor`.
+- **Three files per component**: `name.ts`, `name.html`, `name.scss` (plus `name.spec.ts`), linked with
+  `templateUrl` and `styleUrl`. No inline `template` or `styles`. This is the Angular 20 CLI naming (no `.component` suffix).
+- Templates use the built-in control flow (`@if`, `@for`, `@defer` where useful). No `*ngIf`/`*ngFor`.
+- **Every `@for` has a `track` by a stable id** (`@for (expense of expenses(); track expense.id)`), never `track $index`
+  for data that can be added, removed or reordered. It is the `@for` equivalent of `trackBy`: Angular reuses the DOM rows
+  instead of re-rendering the whole list.
+- **RxJS for async flows**: HTTP calls, debounced filters (`debounceTime`, `distinctUntilChanged`), cancelling
+  stale requests (`switchMap`), error handling (`catchError`), and finalizing loading flags (`finalize`).
+  This lives in services and stores. State reaches templates as signals (`toSignal` or a store signal), so no
+  `async` pipe juggling and OnPush stays simple. No nested `subscribe`.
+- **Interceptors** are functional (`HttpInterceptorFn`) and registered once with `provideHttpClient(withInterceptors([...]))`
+  in `app.config.ts`, in this order: `authInterceptor` (adds the Bearer token to our API URLs only), then
+  `errorInterceptor` (401 logout, 0/5xx snackbar, 400 passes through). Cross-cutting HTTP concerns go here, never in components or services.
 - Pages talk to stores. Stores talk to API services. Components talk to nobody, they only receive inputs and emit outputs.
 - No experimental Angular APIs (no `httpResource`, no signal forms) so nothing breaks during the demo.
 - Subscriptions cleaned up with `takeUntilDestroyed`, or avoided by converting to signals.

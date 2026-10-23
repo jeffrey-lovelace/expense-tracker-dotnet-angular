@@ -47,7 +47,9 @@ jobs:
               Microsoft.Data.Sqlite or ASP.NET Core, the Identity and Expenses contexts referencing each other.
             - async issues: .Result, .Wait(), async void, missing CancellationToken, undisposed connections.
             - Angular: components without OnPush, NgModules, *ngIf/*ngFor, HttpClient outside services/,
-              manual subscriptions without takeUntilDestroyed, Date.toISOString() used for calendar dates.
+              manual subscriptions without takeUntilDestroyed, Date.toISOString() used for calendar dates,
+              @for without `track` by a stable id, inline `template`/`styles` instead of .html/.scss files,
+              nested subscribe instead of RxJS operators, HTTP concerns handled outside interceptors.
             - New behavior without tests, or tests that do not actually assert the rule.
             - Secrets committed, emojis in code, UI, docs or commit messages.
 
