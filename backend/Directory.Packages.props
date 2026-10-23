@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup Label="Data">
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="8.0.32" />
+    <PackageVersion Include="Microsoft.Extensions.Identity.Core" Version="8.0.32" />
   </ItemGroup>
   <ItemGroup Label="Api">
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.32" />
