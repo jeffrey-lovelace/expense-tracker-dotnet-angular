@@ -45,11 +45,9 @@ public sealed class ExpenseService
             : Result.Success(expense.ToResponse());
     }
 
-    public async Task<IReadOnlyList<ExpenseResponse>> GetAllAsync(Guid userId, CancellationToken cancellationToken)
-    {
-        var expenses = await _repository.GetAllAsync(userId, cancellationToken);
-        return expenses.Where(e => e.UserId == userId).Select(e => e.ToResponse()).ToList();
-    }
+    public Task<Result<ExpenseListResponse>> ListAsync(
+        Guid userId, ExpenseListQuery query, CancellationToken cancellationToken) =>
+        throw new NotImplementedException();
 
     public async Task<Result<ExpenseResponse>> UpdateAsync(
         Guid userId, Guid id, UpdateExpenseRequest request, CancellationToken cancellationToken)

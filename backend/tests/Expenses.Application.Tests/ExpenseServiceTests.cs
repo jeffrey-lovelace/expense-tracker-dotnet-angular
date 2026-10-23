@@ -6,7 +6,8 @@ using Moq;
 namespace Expenses.Application.Tests;
 
 // Field rules (amount, description, category, date) are tested once, in Expenses.Domain.Tests.
-// These tests cover what the service adds: ownership, not-found, the clock it passes, and what it saves.
+// These tests cover what the service adds: ownership, not-found, the clock it passes, what it saves, and the list
+// query rules that belong to the Application layer (paging limits, From <= To, category filter).
 public sealed class ExpenseServiceTests
 {
     // 2026-10-23 02:00 UTC is still 2026-10-22 22:00 in Bolivia (UTC-4). "Today" for the user is the 22nd.
@@ -121,36 +122,78 @@ public sealed class ExpenseServiceTests
         AssertNotFound(result);
     }
 
-    // ---------- GetAll ----------
+    // ---------- List ----------
 
     [Fact]
-    public async Task GetAllAsync_ReturnsOnlyCallersExpenses()
+    public async Task ListAsync_WithDefaultQuery_AsksRepositoryForCallersFirstPage()
     {
         var mine = new[] { ExistingExpense(CallerId), ExistingExpense(CallerId) };
-        var theirs = new[] { ExistingExpense(OtherUserId) };
-        _repository.Setup(r => r.GetAllAsync(CallerId, It.IsAny<CancellationToken>())).ReturnsAsync(mine);
-        _repository.Setup(r => r.GetAllAsync(OtherUserId, It.IsAny<CancellationToken>())).ReturnsAsync(theirs);
+        ExpenseListFilter? received = null;
+        _repository
+            .Setup(r => r.ListAsync(CallerId, It.IsAny<ExpenseListFilter>(), It.IsAny<CancellationToken>()))
+            .Callback<Guid, ExpenseListFilter, CancellationToken>((_, filter, _) => received = filter)
+            .ReturnsAsync(new ExpensePage(mine, 42, 1234.56m));
         using var cts = new CancellationTokenSource();
 
-        var result = await _service.GetAllAsync(CallerId, cts.Token);
+        var result = await _service.ListAsync(CallerId, new ExpenseListQuery(), cts.Token);
 
-        Assert.Equal(mine.Select(e => e.Id), result.Select(e => e.Id));
-        _repository.Verify(r => r.GetAllAsync(CallerId, cts.Token), Times.Once);
-        _repository.Verify(r => r.GetAllAsync(OtherUserId, It.IsAny<CancellationToken>()), Times.Never);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(new ExpenseListFilter(1, 20), received);
+        var page = result.Value!;
+        Assert.Equal(mine.Select(e => e.Id), page.Items.Select(e => e.Id));
+        Assert.Equal(1, page.Page);
+        Assert.Equal(20, page.PageSize);
+        Assert.Equal(42, page.TotalCount);
+        Assert.Equal(1234.56m, page.TotalAmount);
+        _repository.Verify(r => r.ListAsync(CallerId, It.IsAny<ExpenseListFilter>(), cts.Token), Times.Once);
+        _repository.Verify(r => r.ListAsync(OtherUserId, It.IsAny<ExpenseListFilter>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task GetAllAsync_WhenRepositoryReturnsOtherUsersExpense_ExcludesIt()
+    public async Task ListAsync_WithFilters_PassesParsedFilterToRepository()
     {
-        var mine = ExistingExpense(CallerId);
-        var leaked = ExistingExpense(OtherUserId);
+        var from = new DateOnly(2026, 10, 1);
+        var to = new DateOnly(2026, 10, 31);
         _repository
-            .Setup(r => r.GetAllAsync(CallerId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new[] { mine, leaked });
+            .Setup(r => r.ListAsync(CallerId, It.IsAny<ExpenseListFilter>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ExpensePage([], 0, 0m));
 
-        var result = await _service.GetAllAsync(CallerId, CancellationToken.None);
+        var result = await _service.ListAsync(CallerId, new ExpenseListQuery(3, 50, "Food", from, to), CancellationToken.None);
 
-        Assert.Equal(mine.Id, Assert.Single(result).Id);
+        Assert.True(result.IsSuccess);
+        _repository.Verify(
+            r => r.ListAsync(CallerId, new ExpenseListFilter(3, 50, ExpenseCategory.Food, from, to), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Theory]
+    [InlineData(0, 20, "page")]
+    [InlineData(-1, 20, "page")]
+    [InlineData(1, 0, "pageSize")]
+    [InlineData(1, 101, "pageSize")]
+    public async Task ListAsync_WithInvalidPaging_ReturnsValidationError(int pageNumber, int pageSize, string field)
+    {
+        var result = await _service.ListAsync(CallerId, new ExpenseListQuery(pageNumber, pageSize), CancellationToken.None);
+
+        AssertListValidationError(result, field);
+    }
+
+    [Fact]
+    public async Task ListAsync_WithUnknownCategory_ReturnsValidationError()
+    {
+        var result = await _service.ListAsync(CallerId, new ExpenseListQuery(Category: "food"), CancellationToken.None);
+
+        AssertListValidationError(result, "category");
+    }
+
+    [Fact]
+    public async Task ListAsync_WithFromAfterTo_ReturnsValidationError()
+    {
+        var query = new ExpenseListQuery(From: new DateOnly(2026, 10, 2), To: new DateOnly(2026, 10, 1));
+
+        var result = await _service.ListAsync(CallerId, query, CancellationToken.None);
+
+        AssertListValidationError(result, "to");
     }
 
     // ---------- Update ----------
@@ -160,6 +203,7 @@ public sealed class ExpenseServiceTests
     {
         var expense = ExistingExpense(CallerId);
         SetupGetById(CallerId, expense);
+        _repository.Setup(r => r.UpdateAsync(It.IsAny<Expense>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
         var request = new UpdateExpenseRequest("Dinner", 40m, "Entertainment", LocalToday);
 
         var result = await _service.UpdateAsync(CallerId, expense.Id, request, CancellationToken.None);
@@ -186,6 +230,20 @@ public sealed class ExpenseServiceTests
         Assert.False(result.IsSuccess);
         Assert.Equal("amount", Assert.Single(result.Errors).Field);
         AssertNothingUpdated();
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenRowDisappearsBeforeSave_ReturnsNotFound()
+    {
+        // Deleted by another request between the read and the write: the UPDATE affects 0 rows.
+        var expense = ExistingExpense(CallerId);
+        SetupGetById(CallerId, expense);
+        _repository.Setup(r => r.UpdateAsync(It.IsAny<Expense>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        var request = new UpdateExpenseRequest("Dinner", 40m, "Food", LocalToday);
+
+        var result = await _service.UpdateAsync(CallerId, expense.Id, request, CancellationToken.None);
+
+        AssertNotFound(result);
     }
 
     [Fact]
@@ -266,6 +324,16 @@ public sealed class ExpenseServiceTests
 
     private void AssertNothingUpdated() =>
         _repository.Verify(r => r.UpdateAsync(It.IsAny<Expense>(), It.IsAny<CancellationToken>()), Times.Never);
+
+    private void AssertListValidationError(Result<ExpenseListResponse> result, string field)
+    {
+        Assert.False(result.IsSuccess);
+        var error = Assert.Single(result.Errors);
+        Assert.Equal(ErrorType.Validation, error.Type);
+        Assert.Equal(field, error.Field);
+        _repository.Verify(
+            r => r.ListAsync(It.IsAny<Guid>(), It.IsAny<ExpenseListFilter>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 
     private static void AssertNotFound<T>(Result<T> result)
     {
