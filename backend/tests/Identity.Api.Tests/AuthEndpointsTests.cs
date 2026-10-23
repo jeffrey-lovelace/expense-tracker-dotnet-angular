@@ -30,7 +30,7 @@ public sealed class AuthEndpointsTests : IClassFixture<IdentityApiFactory>
             "/api/auth/register", new { email, displayName = "New User", password = Password });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        Assert.Equal("/api/auth/me", response.Headers.Location!.OriginalString);
+        Assert.Equal("/api/auth/me", response.Headers.Location!.AbsolutePath);
         var body = await ReadJsonAsync(response);
         var user = body.GetProperty("user");
         Assert.Equal(email, user.GetProperty("email").GetString());
