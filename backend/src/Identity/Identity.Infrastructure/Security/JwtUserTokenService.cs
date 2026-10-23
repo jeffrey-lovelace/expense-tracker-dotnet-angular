@@ -15,5 +15,10 @@ public sealed class JwtUserTokenService : ITokenService
         _jwt = jwt;
     }
 
-    public IssuedToken CreateToken(User user) => throw new NotImplementedException();
+    public IssuedToken CreateToken(User user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        var token = _jwt.Issue(user.Id, user.Email, user.DisplayName);
+        return new IssuedToken(token.Value, token.ExpiresAtUtc);
+    }
 }
