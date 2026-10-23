@@ -1,0 +1,48 @@
+// Small global pieces shared by several components.
+
+// Category marker: a small square in the category color next to its label (AGENTS.md 12.1).
+.et-marker {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  background: var(--et-marker, var(--et-category-other));
+}
+
+[data-category='Food'] {
+  --et-marker: var(--et-category-food);
+}
+[data-category='Transport'] {
+  --et-marker: var(--et-category-transport);
+}
+[data-category='Housing'] {
+  --et-marker: var(--et-category-housing);
+}
+[data-category='Utilities'] {
+  --et-marker: var(--et-category-utilities);
+}
+[data-category='Health'] {
+  --et-marker: var(--et-category-health);
+}
+[data-category='Entertainment'] {
+  --et-marker: var(--et-category-entertainment);
+}
+[data-category='Shopping'] {
+  --et-marker: var(--et-category-shopping);
+}
+[data-category='Education'] {
+  --et-marker: var(--et-category-education);
+}
+[data-category='Other'] {
+  --et-marker: var(--et-category-other);
+}
+
+// Dialogs open full screen on small viewports (AGENTS.md 11.2).
+.et-dialog-fullscreen .mat-mdc-dialog-surface {
+  border-radius: 0;
+}
+
+// Dialogs are the one place with a shadow; everything else uses hairline rules.
+.mat-mdc-dialog-surface {
+  border: 1px solid var(--et-rule);
+}

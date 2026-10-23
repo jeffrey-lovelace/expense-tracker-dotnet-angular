@@ -1,0 +1,18 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--et-space-3);
+  padding: var(--et-space-12) 0;
+  border-top: 1px solid var(--et-rule);
+}
+
+.title {
+  margin: 0;
+  font: 600 24px / 32px var(--et-font-serif);
+}
+
+.message {
+  margin: 0;
+  color: var(--et-ink-muted);
+}

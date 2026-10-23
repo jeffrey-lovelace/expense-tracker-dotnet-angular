@@ -1,0 +1,8 @@
+<p class="et-label">{{ period() }}</p>
+@if (loading()) {
+  <app-skeleton variant="block" width="240px" height="48px" />
+  <app-skeleton width="120px" class="count-skeleton" />
+} @else {
+  <p class="et-display et-mono total">{{ total() | money }}</p>
+  <p class="count">{{ count() }} {{ count() === 1 ? 'expense' : 'expenses' }}</p>
+}

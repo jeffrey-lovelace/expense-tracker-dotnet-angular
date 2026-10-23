@@ -1,0 +1,107 @@
+<h2 mat-dialog-title>{{ editing ? 'Edit expense' : 'New expense' }}</h2>
+
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <mat-dialog-content>
+    @if (formError(); as message) {
+      <p class="form-error" role="alert">{{ message }}</p>
+    }
+
+    <mat-form-field appearance="outline">
+      <mat-label>Description</mat-label>
+      <input matInput formControlName="description" autocomplete="off" />
+      @if (form.controls.description.hasError('required')) {
+        <mat-error>Describe the expense.</mat-error>
+      } @else if (
+        form.controls.description.hasError('minlength') ||
+        form.controls.description.hasError('maxlength')
+      ) {
+        <mat-error>Use between 3 and 200 characters.</mat-error>
+      } @else if (form.controls.description.hasError('server')) {
+        <mat-error>{{ form.controls.description.getError('server') }}</mat-error>
+      }
+    </mat-form-field>
+
+    <div class="row">
+      <mat-form-field appearance="outline">
+        <mat-label>Amount</mat-label>
+        <input
+          matInput
+          type="number"
+          inputmode="decimal"
+          min="0.01"
+          step="0.01"
+          formControlName="amount"
+          class="et-mono"
+        />
+        @if (form.controls.amount.hasError('required')) {
+          <mat-error>Enter the amount.</mat-error>
+        } @else if (form.controls.amount.hasError('min')) {
+          <mat-error>The amount must be greater than 0.</mat-error>
+        } @else if (form.controls.amount.hasError('max')) {
+          <mat-error>The amount can be at most 1,000,000.00.</mat-error>
+        } @else if (form.controls.amount.hasError('maxDecimals')) {
+          <mat-error>Use at most 2 decimal places.</mat-error>
+        } @else if (form.controls.amount.hasError('server')) {
+          <mat-error>{{ form.controls.amount.getError('server') }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Date</mat-label>
+        <input
+          matInput
+          [matDatepicker]="picker"
+          [min]="minDate"
+          [max]="maxDate"
+          formControlName="date"
+        />
+        <mat-datepicker-toggle matIconSuffix [for]="picker" />
+        <mat-datepicker #picker />
+        @if (
+          form.controls.date.hasError('required') ||
+          form.controls.date.hasError('matDatepickerParse')
+        ) {
+          <mat-error>Enter a valid date.</mat-error>
+        } @else if (
+          form.controls.date.hasError('notAfter') || form.controls.date.hasError('matDatepickerMax')
+        ) {
+          <mat-error>The date cannot be in the future.</mat-error>
+        } @else if (form.controls.date.hasError('matDatepickerMin')) {
+          <mat-error>The date cannot be before 2000.</mat-error>
+        } @else if (form.controls.date.hasError('server')) {
+          <mat-error>{{ form.controls.date.getError('server') }}</mat-error>
+        }
+      </mat-form-field>
+    </div>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Category</mat-label>
+      <mat-select formControlName="category">
+        @for (category of data.categories; track category.value) {
+          <mat-option [value]="category.value">
+            <span class="option" [attr.data-category]="category.value">
+              <span class="et-marker"></span>{{ category.label }}
+            </span>
+          </mat-option>
+        }
+      </mat-select>
+      @if (form.controls.category.hasError('required')) {
+        <mat-error>Choose a category.</mat-error>
+      } @else if (form.controls.category.hasError('server')) {
+        <mat-error>{{ form.controls.category.getError('server') }}</mat-error>
+      }
+    </mat-form-field>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" mat-dialog-close [disabled]="pending()">Cancel</button>
+    <button mat-flat-button type="submit" [disabled]="pending()">
+      @if (pending()) {
+        <mat-spinner diameter="18" aria-hidden="true" />
+        Saving
+      } @else {
+        {{ editing ? 'Save changes' : 'Add expense' }}
+      }
+    </button>
+  </mat-dialog-actions>
+</form>

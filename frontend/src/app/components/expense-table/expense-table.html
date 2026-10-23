@@ -1,0 +1,61 @@
+<table class="ledger" [attr.aria-busy]="loading()">
+  <caption class="visually-hidden">
+    Your expenses, newest first
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col" class="date et-label">Date</th>
+      <th scope="col" class="description et-label">Description</th>
+      <th scope="col" class="category et-label">Category</th>
+      <th scope="col" class="amount et-label">Amount</th>
+      <th scope="col" class="actions"><span class="visually-hidden">Actions</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    @if (loading()) {
+      @for (row of skeletonRows; track row) {
+        <tr class="skeleton-row">
+          <td class="date"><app-skeleton width="52px" /></td>
+          <td class="description"><app-skeleton width="70%" /></td>
+          <td class="category"><app-skeleton width="96px" /></td>
+          <td class="amount"><app-skeleton width="72px" class="push-right" /></td>
+          <td class="actions"></td>
+        </tr>
+      }
+    } @else {
+      @for (expense of expenses(); track expense.id) {
+        <tr>
+          <td class="date et-mono">{{ expense.date | ledgerDate }}</td>
+          <td class="description">{{ expense.description }}</td>
+          <td class="category">
+            <span class="category-cell" [attr.data-category]="expense.category">
+              <span class="et-marker"></span>{{ expense.category | categoryLabel: categories() }}
+            </span>
+          </td>
+          <td class="amount et-mono">{{ expense.amount | money }}</td>
+          <td class="actions">
+            <button
+              mat-icon-button
+              type="button"
+              matTooltip="Edit"
+              [attr.aria-label]="'Edit ' + expense.description"
+              (click)="edit.emit(expense)"
+            >
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button
+              mat-icon-button
+              type="button"
+              class="danger"
+              matTooltip="Delete"
+              [attr.aria-label]="'Delete ' + expense.description"
+              (click)="remove.emit(expense)"
+            >
+              <mat-icon>delete</mat-icon>
+            </button>
+          </td>
+        </tr>
+      }
+    }
+  </tbody>
+</table>

@@ -1,5 +1,74 @@
 <app-shell [userName]="userName()" (signOut)="signOut()">
-  <p class="et-label">Your ledger</p>
-  <h1>Expenses</h1>
-  <p class="placeholder">The list, filters and totals are the next step.</p>
+  <header class="head">
+    <app-expense-summary
+      [period]="period()"
+      [total]="expenses.totalAmount()"
+      [count]="expenses.totalCount()"
+      [loading]="expenses.loading() && expenses.items().length === 0"
+    />
+    <button mat-flat-button type="button" class="add" (click)="add()">
+      <mat-icon>add</mat-icon>
+      Add expense
+    </button>
+  </header>
+
+  <app-expense-filters
+    class="filters"
+    [categories]="categories.categories()"
+    [filters]="expenses.filters()"
+    (filtersChange)="applyFilters($event)"
+  />
+
+  @if (expenses.error()) {
+    <app-empty-state
+      title="The ledger could not be loaded."
+      message="Check your connection and try again."
+      actionLabel="Try again"
+      (action)="expenses.load()"
+    />
+  } @else if (!expenses.loading() && expenses.items().length === 0) {
+    @if (hasFilters()) {
+      <app-empty-state
+        title="Nothing matches these filters."
+        message="Try another category or a wider date range."
+        actionLabel="Clear filters"
+        (action)="clearFilters()"
+      />
+    } @else {
+      <app-empty-state
+        title="Your ledger is empty."
+        message="Add your first expense to see where your money goes."
+        actionLabel="Add expense"
+        (action)="add()"
+      />
+    }
+  } @else {
+    @if (wide()) {
+      <app-expense-table
+        [expenses]="expenses.items()"
+        [categories]="categories.categories()"
+        [loading]="expenses.loading()"
+        (edit)="edit($event)"
+        (remove)="remove($event)"
+      />
+    } @else {
+      <app-expense-card-list
+        [expenses]="expenses.items()"
+        [categories]="categories.categories()"
+        [loading]="expenses.loading()"
+        (edit)="edit($event)"
+        (remove)="remove($event)"
+      />
+    }
+
+    <mat-paginator
+      [length]="expenses.totalCount()"
+      [pageIndex]="expenses.page() - 1"
+      [pageSize]="expenses.pageSize()"
+      [pageSizeOptions]="[10, 20, 50]"
+      [disabled]="expenses.loading()"
+      aria-label="Choose a page of expenses"
+      (page)="changePage($event)"
+    />
+  }
 </app-shell>

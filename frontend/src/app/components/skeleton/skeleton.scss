@@ -1,0 +1,41 @@
+:host {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    var(--et-rule) 0%,
+    color-mix(in srgb, var(--et-rule) 45%, var(--et-surface)) 50%,
+    var(--et-rule) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+  border-radius: var(--et-radius-sm);
+}
+
+:host(.line) {
+  height: 1em;
+}
+
+:host(.block) {
+  height: 48px;
+}
+
+:host(.circle) {
+  height: 32px;
+  border-radius: 50%;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :host {
+    animation: none;
+  }
+}
