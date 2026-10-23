@@ -3,6 +3,7 @@ using Identity.Infrastructure.Persistence;
 using Identity.Infrastructure.Security;
 
 using Shared.Auth;
+using Shared.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,13 +14,7 @@ builder.Host.UseDefaultServiceProvider(options =>
     options.ValidateOnBuild = true;
 });
 
-builder.Services.AddControllers(options =>
-    // Field rules live in the Domain (AGENTS.md 10.10). Without this, ASP.NET would add its own [Required] check
-    // for non-nullable properties, with a different message and a PascalCase key ("Password").
-    options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true);
-builder.Services.AddProblemDetails();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddApiDefaults("Identity API");
 builder.Services.AddJwtAuthentication(builder.Configuration);
 
 // Composition root: the only place that knows the Infrastructure types.
@@ -38,17 +33,7 @@ var app = builder.Build();
 
 await app.Services.GetRequiredService<SqliteMigrator>().MigrateAsync(CancellationToken.None);
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-// Empty error responses (401 from the JWT handler, 404 for unknown routes) get a ProblemDetails body.
-app.UseStatusCodePages();
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers();
+app.UseApiPipeline();
 
 await app.RunAsync();
 

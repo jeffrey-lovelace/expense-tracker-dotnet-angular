@@ -101,7 +101,8 @@ Scope required by the exercise:
   .env.example                 # only used by docker compose (optional)
   src/
     Shared/
-      Shared.Auth/             # JwtOptions, AddJwtAuthentication(), ClaimsPrincipal.GetUserId()
+      Shared.Auth/             # JwtOptions, AddJwtAuthentication(), JwtTokenService, ClaimsPrincipal.TryGetUserId()
+      Shared.Web/              # hosting shared by both APIs: middleware order, CORS, exception handler, Swagger + JWT
     Identity/
       Identity.Domain/         # User entity, Email rules
       Identity.Application/    # UserService, IUserRepository, IPasswordHasher, ITokenService, DTOs
