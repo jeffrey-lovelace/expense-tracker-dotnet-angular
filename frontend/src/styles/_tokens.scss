@@ -1,0 +1,59 @@
+// Design tokens: the "modern ledger" palette (AGENTS.md section 12). Every color in the app comes from here.
+// Light and dark follow the operating system through prefers-color-scheme.
+
+:root {
+  color-scheme: light dark;
+
+  --et-paper: #f4f0e6;
+  --et-surface: #fffdf8;
+  --et-ink: #1b2420;
+  --et-ink-muted: #5e6a64;
+  --et-rule: #d9d2c3;
+  --et-primary: #2f5d50;
+  --et-on-primary: #ffffff;
+  --et-accent: #c98a2b;
+  --et-danger: #b5462e;
+
+  // Category markers: a small square next to the label, never a filled chip.
+  --et-category-food: #c98a2b;
+  --et-category-transport: #3f6e8c;
+  --et-category-housing: #7a5c3e;
+  --et-category-utilities: #5b7f4a;
+  --et-category-health: #b5462e;
+  --et-category-entertainment: #7b4f7a;
+  --et-category-shopping: #a0673a;
+  --et-category-education: #2f5d50;
+  --et-category-other: #6f7772;
+
+  --et-font-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --et-font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --et-font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+  // 4px grid.
+  --et-space-1: 4px;
+  --et-space-2: 8px;
+  --et-space-3: 12px;
+  --et-space-4: 16px;
+  --et-space-6: 24px;
+  --et-space-8: 32px;
+  --et-space-12: 48px;
+  --et-space-16: 64px;
+
+  --et-radius-sm: 4px;
+  --et-radius-md: 8px;
+  --et-content-width: 1120px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --et-paper: #121815;
+    --et-surface: #1a221e;
+    --et-ink: #ece6d8;
+    --et-ink-muted: #a9b3ad;
+    --et-rule: #2c3631;
+    --et-primary: #7fb5a3;
+    --et-on-primary: #0e1a16;
+    --et-accent: #e0a84a;
+    --et-danger: #e07a5f;
+  }
+}

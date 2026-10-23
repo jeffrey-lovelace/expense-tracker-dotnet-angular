@@ -45,3 +45,12 @@ the requirements; the alternative is noted so it can be discussed in the review.
 | `GET /api/auth/me` for a token whose user no longer exists returns 401, not 404. | The session is dead; the client should sign in again. | 404. |
 | The token-issuing side is `Shared.Auth.JwtTokenService`; `Identity.Infrastructure.JwtUserTokenService` adapts it to the `ITokenService` port. | The issuer and the validator share the same `JwtOptions` and claim names, and the Application layer keeps depending on its own port. | Issue tokens directly in Identity.Infrastructure. |
 
+## Frontend
+
+| Decision | Why | Alternative |
+|---|---|---|
+| Material is installed with npm and themed by hand (`src/styles/`), not with `ng add`. Palettes come from `ng generate @angular/material:theme-color`; `mat.theme-overrides` then points Material's system tokens at our `--et-*` variables. | The ledger look replaces Material's defaults anyway, and one set of variables drives both our components and Material's, in light and dark. | `ng add @angular/material` with a prebuilt theme. |
+| Icons use the self-hosted `material-symbols` outlined font (about 4 MB, downloaded once when the first icon renders, then cached). | AGENTS.md asks for self-hosted Material Symbols. Inline SVG icons would be lighter but need `bypassSecurityTrust*` with `MatIconRegistry`, which AGENTS.md forbids. | A subset font built for the dozen icons the app uses. |
+| `environment.ts` (production) points at `http://localhost:5001/5002` like development. | The demo runs both APIs locally; a real deployment would set its own hosts at build time. | Relative URLs behind a reverse proxy (the optional Docker setup). |
+| ESLint adds `prefer-signals`, `template/prefer-control-flow` and `template/prefer-self-closing-tags` to the AGENTS.md rules. `console.error` is allowed only in the global error handler and in `main.ts`. | They enforce the section 11.2 rules mechanically. A bootstrap failure happens before Angular's error handling exists. | Rely on review only. |
+

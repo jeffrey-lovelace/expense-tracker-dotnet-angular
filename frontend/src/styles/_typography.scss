@@ -1,0 +1,43 @@
+// Type scale (AGENTS.md section 12.2): Fraunces for headlines, IBM Plex Sans for text, IBM Plex Mono for amounts
+// and dates with tabular figures so columns line up.
+
+.et-display {
+  font: 600 40px / 48px var(--et-font-serif);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+h1,
+.et-h1 {
+  font: 600 32px / 40px var(--et-font-serif);
+  margin: 0;
+}
+
+h2,
+.et-h2 {
+  font: 600 24px / 32px var(--et-font-serif);
+  margin: 0;
+}
+
+h3,
+.et-h3 {
+  font: 600 18px / 26px var(--et-font-sans);
+  margin: 0;
+}
+
+.et-body-small {
+  font: 400 14px / 20px var(--et-font-sans);
+}
+
+.et-label {
+  font: 600 12px / 16px var(--et-font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--et-ink-muted);
+}
+
+.et-mono {
+  font-family: var(--et-font-mono);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}

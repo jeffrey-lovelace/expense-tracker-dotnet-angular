@@ -1,0 +1,68 @@
+// Angular Material 3 theme. The palettes are generated from the brand colors (_theme-colors.scss); the overrides
+// then point Material's system tokens at our own variables, so components use the exact ledger colors and the
+// dark scheme switches with them.
+
+@use '@angular/material' as mat;
+@use './theme-colors' as colors;
+
+html {
+  @include mat.theme(
+    (
+      color: (
+        primary: colors.$primary-palette,
+        tertiary: colors.$tertiary-palette,
+        theme-type: color-scheme,
+      ),
+      typography: (
+        plain-family: var(--et-font-sans),
+        brand-family: var(--et-font-serif),
+        bold-weight: 600,
+        medium-weight: 600,
+        regular-weight: 400,
+      ),
+      density: 0,
+    )
+  );
+
+  @include mat.theme-overrides(
+    (
+      primary: var(--et-primary),
+      on-primary: var(--et-on-primary),
+      surface: var(--et-surface),
+      surface-container: var(--et-surface),
+      surface-container-low: var(--et-surface),
+      surface-container-high: var(--et-surface),
+      surface-container-highest: var(--et-paper),
+      on-surface: var(--et-ink),
+      on-surface-variant: var(--et-ink-muted),
+      outline: var(--et-ink-muted),
+      outline-variant: var(--et-rule),
+      error: var(--et-danger),
+    )
+  );
+
+  // Small, consistent corners (4px controls, 8px containers) instead of Material's rounded defaults.
+  @include mat.button-overrides(
+    (
+      filled-container-shape: var(--et-radius-sm),
+      outlined-container-shape: var(--et-radius-sm),
+      text-container-shape: var(--et-radius-sm),
+      protected-container-shape: var(--et-radius-sm),
+    )
+  );
+  @include mat.form-field-overrides(
+    (
+      outlined-container-shape: var(--et-radius-sm),
+    )
+  );
+  @include mat.dialog-overrides(
+    (
+      container-shape: var(--et-radius-md),
+    )
+  );
+  @include mat.snack-bar-overrides(
+    (
+      container-shape: var(--et-radius-sm),
+    )
+  );
+}
