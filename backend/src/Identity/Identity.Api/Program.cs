@@ -1,6 +1,7 @@
 using Identity.Application;
 using Identity.Infrastructure.Persistence;
 using Identity.Infrastructure.Security;
+using Identity.Infrastructure.Seeding;
 
 using Shared.Auth;
 using Shared.Web;
@@ -28,10 +29,19 @@ builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddSingleton<ITokenService, JwtUserTokenService>();
 builder.Services.AddScoped<IUserRepository, SqliteUserRepository>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<DatabaseSeeder>();
 
 var app = builder.Build();
 
 await app.Services.GetRequiredService<SqliteMigrator>().MigrateAsync(CancellationToken.None);
+
+// Demo data: on in Development (appsettings.Development.json), off elsewhere unless Seed__Enabled=true.
+var seed = app.Configuration.GetSection(SeedOptions.SectionName).Get<SeedOptions>() ?? new SeedOptions();
+if (seed.Enabled)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    await scope.ServiceProvider.GetRequiredService<DatabaseSeeder>().SeedAsync(seed.Users, CancellationToken.None);
+}
 
 app.UseApiPipeline();
 

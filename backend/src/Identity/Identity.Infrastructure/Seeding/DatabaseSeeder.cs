@@ -1,4 +1,5 @@
 using Identity.Application;
+using Identity.Domain;
 
 namespace Identity.Infrastructure.Seeding;
 
@@ -20,6 +21,37 @@ public sealed class DatabaseSeeder
     }
 
     /// <returns>How many users were inserted.</returns>
-    public Task<int> SeedAsync(IEnumerable<SeedUser> users, CancellationToken cancellationToken) =>
-        throw new NotImplementedException();
+    public async Task<int> SeedAsync(IEnumerable<SeedUser> users, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(users);
+        var inserted = 0;
+
+        foreach (var seed in users)
+        {
+            var email = User.NormalizeEmail(seed.Email);
+            if (await _users.GetByIdAsync(seed.Id, cancellationToken) is not null
+                || await _users.GetByEmailAsync(email, cancellationToken) is not null)
+            {
+                continue;
+            }
+
+            var created = User.Create(seed.Email, seed.DisplayName, seed.Password, _passwordHasher.Hash, _timeProvider.GetUtcNow());
+            if (!created.IsSuccess)
+            {
+                // Error codes only: the message must not echo the configured password.
+                var codes = string.Join(", ", created.Errors.Select(e => e.Code));
+                throw new InvalidOperationException($"Seed user '{email}' is invalid: {codes}.");
+            }
+
+            // Same validated values, but the fixed id that Expenses.Api also uses for the sample expenses.
+            var user = created.Value!;
+            var withFixedId = User.Rehydrate(seed.Id, user.Email, user.DisplayName, user.PasswordHash, user.CreatedAtUtc);
+            if (await _users.AddAsync(withFixedId, cancellationToken))
+            {
+                inserted++;
+            }
+        }
+
+        return inserted;
+    }
 }

@@ -1,5 +1,6 @@
 using Expenses.Application;
 using Expenses.Infrastructure.Persistence;
+using Expenses.Infrastructure.Seeding;
 
 using Shared.Auth;
 using Shared.Web;
@@ -24,10 +25,19 @@ builder.Services.AddSingleton<ISqliteConnectionFactory>(services => new SqliteCo
 builder.Services.AddSingleton<SqliteMigrator>();
 builder.Services.AddScoped<IExpenseRepository, SqliteExpenseRepository>();
 builder.Services.AddScoped<ExpenseService>();
+builder.Services.AddScoped<DatabaseSeeder>();
 
 var app = builder.Build();
 
 await app.Services.GetRequiredService<SqliteMigrator>().MigrateAsync(CancellationToken.None);
+
+// Demo data: on in Development (appsettings.Development.json), off elsewhere unless Seed__Enabled=true.
+var seed = app.Configuration.GetSection(SeedOptions.SectionName).Get<SeedOptions>() ?? new SeedOptions();
+if (seed.Enabled)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    await scope.ServiceProvider.GetRequiredService<DatabaseSeeder>().SeedAsync(seed.Users, CancellationToken.None);
+}
 
 app.UseApiPipeline();
 
