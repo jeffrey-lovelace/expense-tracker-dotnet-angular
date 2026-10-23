@@ -7,8 +7,6 @@ public sealed class Expense
     public const decimal MaxAmount = 1_000_000m;
     public static readonly DateOnly MinDate = new(2000, 1, 1);
 
-    private static readonly string[] CategoryNames = Enum.GetNames<ExpenseCategory>();
-
     private Expense(
         Guid id,
         Guid userId,
@@ -133,13 +131,7 @@ public sealed class Expense
             errors.Add(ExpenseErrors.AmountTooManyDecimals);
         }
 
-        // Exact names only. Enum.TryParse would also accept "5", " Food" or "Food,Transport".
-        var parsedCategory = ExpenseCategory.Other;
-        if (category is not null && CategoryNames.Contains(category, StringComparer.Ordinal))
-        {
-            parsedCategory = Enum.Parse<ExpenseCategory>(category);
-        }
-        else
+        if (!ExpenseCategories.TryParse(category, out var parsedCategory))
         {
             errors.Add(ExpenseErrors.CategoryUnknown);
         }

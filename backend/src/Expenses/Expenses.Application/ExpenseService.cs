@@ -45,9 +45,22 @@ public sealed class ExpenseService
             : Result.Success(expense.ToResponse());
     }
 
-    public Task<Result<ExpenseListResponse>> ListAsync(
-        Guid userId, ExpenseListQuery query, CancellationToken cancellationToken) =>
-        throw new NotImplementedException();
+    public async Task<Result<ExpenseListResponse>> ListAsync(
+        Guid userId, ExpenseListQuery query, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var filter = ToFilter(query);
+        if (!filter.IsSuccess)
+        {
+            return Result.Failure<ExpenseListResponse>(filter.Errors);
+        }
+
+        var page = await _repository.ListAsync(userId, filter.Value!, cancellationToken);
+        var items = page.Items.Select(e => e.ToResponse()).ToList();
+        return Result.Success(
+            new ExpenseListResponse(items, query.Page, query.PageSize, page.TotalCount, page.TotalAmount));
+    }
 
     public async Task<Result<ExpenseResponse>> UpdateAsync(
         Guid userId, Guid id, UpdateExpenseRequest request, CancellationToken cancellationToken)
@@ -67,14 +80,54 @@ public sealed class ExpenseService
             return Result.Failure<ExpenseResponse>(updated.Errors);
         }
 
-        await _repository.UpdateAsync(expense, cancellationToken);
-        return Result.Success(expense.ToResponse());
+        // 0 rows: deleted by another request after the read.
+        var saved = await _repository.UpdateAsync(expense, cancellationToken);
+        return saved
+            ? Result.Success(expense.ToResponse())
+            : Result.Failure<ExpenseResponse>(ExpenseErrors.NotFound);
     }
 
     public async Task<Result> DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken)
     {
         var deleted = await _repository.DeleteAsync(userId, id, cancellationToken);
         return deleted ? Result.Success() : Result.Failure(ExpenseErrors.NotFound);
+    }
+
+    private static Result<ExpenseListFilter> ToFilter(ExpenseListQuery query)
+    {
+        var errors = new List<Error>();
+
+        if (query.Page < 1)
+        {
+            errors.Add(ExpenseQueryErrors.Page);
+        }
+
+        if (query.PageSize is < 1 or > ExpenseQueryErrors.MaxPageSize)
+        {
+            errors.Add(ExpenseQueryErrors.PageSize);
+        }
+
+        ExpenseCategory? category = null;
+        if (query.Category is not null)
+        {
+            if (ExpenseCategories.TryParse(query.Category, out var parsed))
+            {
+                category = parsed;
+            }
+            else
+            {
+                errors.Add(ExpenseErrors.CategoryUnknown);
+            }
+        }
+
+        if (query.From is { } from && query.To is { } to && from > to)
+        {
+            errors.Add(ExpenseQueryErrors.DateRange);
+        }
+
+        return errors.Count > 0
+            ? Result.Failure<ExpenseListFilter>(errors)
+            : Result.Success(new ExpenseListFilter(query.Page, query.PageSize, category, query.From, query.To));
     }
 
     // Missing and "owned by someone else" are the same answer, so ids of other users cannot be probed.
