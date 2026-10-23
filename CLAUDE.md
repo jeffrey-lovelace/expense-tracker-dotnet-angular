@@ -11,4 +11,5 @@ All project instructions live in `AGENTS.md`. Follow them exactly; this file onl
 - TDD: show the failing test output before writing the implementation.
 - Stop at the end of each step so Jeff can review before continuing.
 - This file is a regular file. Never replace it with a symlink.
-- At the end of every step, append an entry to the GenAI log in `GENAI.md` following `AGENTS.md` section 15.
+- Do not edit `GENAI.md`; Jeff curates it. Prompts are logged automatically to `docs/ai-prompt-log.md` by a
+  `UserPromptSubmit` hook (`.claude/settings.json`, `AGENTS.md` section 15). Never bypass the hook.

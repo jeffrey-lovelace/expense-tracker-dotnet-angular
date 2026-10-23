@@ -4,8 +4,8 @@ Two SQLite databases, one per API. Each API owns its data and never reads the ot
 
 | Database | Owner | Tables | Script |
 |---|---|---|---|
-| `identity.db` | Identity.Api | `Users`, `SchemaVersions` | [0001_create_users.sql](../src/Identity/Identity.Infrastructure/Persistence/Migrations/0001_create_users.sql) |
-| `expenses.db` | Expenses.Api | `Expenses`, `SchemaVersions` | [0001_create_expenses.sql](../src/Expenses/Expenses.Infrastructure/Persistence/Migrations/0001_create_expenses.sql) |
+| `identity.db` | Identity.Api | `Users`, `SchemaVersions` | [0001_create_users.sql](../backend/src/Identity/Identity.Infrastructure/Persistence/Migrations/0001_create_users.sql) |
+| `expenses.db` | Expenses.Api | `Expenses`, `SchemaVersions` | [0001_create_expenses.sql](../backend/src/Expenses/Expenses.Infrastructure/Persistence/Migrations/0001_create_expenses.sql) |
 
 ## Diagram
 
@@ -62,8 +62,8 @@ This gives versioned, repeatable schema changes without a migration framework.
 
 The SQL lives in one place only: the repositories. This document does not duplicate it, so it cannot drift from the code.
 
-- Users: `src/Identity/Identity.Infrastructure/Persistence/SqliteUserRepository.cs`
-- Expenses: `src/Expenses/Expenses.Infrastructure/Persistence/SqliteExpenseRepository.cs`
+- Users: `backend/src/Identity/Identity.Infrastructure/Persistence/SqliteUserRepository.cs`
+- Expenses: `backend/src/Expenses/Expenses.Infrastructure/Persistence/SqliteExpenseRepository.cs`
 
 Rules every query follows:
 
@@ -89,7 +89,7 @@ I would build the `WHERE` clause from fixed fragments (still parameterized) so t
 
 ## Seed data (Development, or `Seed:Enabled=true`)
 
-Seeding is done in code (`DatabaseSeeder`), not in SQL, because the password hash must be produced by
+Seeding is done in code (`DatabaseSeeder` in each Infrastructure project, under `Seeding/`), not in SQL, because the password hash must be produced by
 `PasswordHasher` and the expense dates are relative to today (through `TimeProvider`). It is idempotent: it only
 inserts when the rows do not exist.
 
