@@ -37,7 +37,7 @@ Scope required by the exercise:
 | SQL safety | Parameterized queries only. Never build SQL with string interpolation or concatenation of user input. |
 | Symlinks | No symlinks anywhere in the repository. `CLAUDE.md` is a regular file. |
 | Emojis | No emojis or emoticons in code, UI, commit messages, logs or documentation. |
-| GenAI | `GENAI.md` must exist at the repository root. Agents append to its log after every step (section 15). Part 1 (the exercise answer) is written by Jeff. |
+| GenAI | `GENAI.md` must exist at the repository root. It is curated by Jeff; agents do not edit it. Every prompt is logged automatically to `docs/ai-prompt-log.md` (section 15). |
 | Repository | One public GitHub repository. Default branch `master`. |
 | Deadline | Sunday Oct 25, 16:00 Bolivia time (UTC-4). After submission, no more commits until told otherwise. |
 | Warnings | Zero build warnings in .NET, zero errors/warnings in the browser console. |
@@ -51,7 +51,7 @@ Scope required by the exercise:
 3. **Explain decisions.** When introducing a pattern, package or non-obvious line, add a one or two sentence
    justification in the summary (not as noisy code comments).
 4. **No new packages without asking.** Use only the packages listed in section 2. Propose additions with a reason.
-5. **Update the GenAI log** in `GENAI.md` at the end of every step (section 15). Do not edit Part 1 of `GENAI.md`, git history, or remote settings unless explicitly asked.
+5. **Do not edit `GENAI.md`**: Jeff curates it (section 15). Do not rewrite git history or change remote settings unless explicitly asked.
 6. Code, comments, commit messages and documentation are written in **English**.
 7. Prefer boring, readable code. No premature abstractions, no generic repositories, no reflection magic.
 
@@ -778,42 +778,26 @@ Arrange / Act / Assert blocks separated by a blank line.
 - No forbidden libraries, no symlinks, no emojis.
 - Browser console clean when the feature is used.
 - Docs updated if a decision changed (`AGENTS.md`, `PRESENTATION.md`).
-- A new entry appended to the GenAI log in `GENAI.md`.
+- Design decisions not covered by this file noted in `DESIGN.md`.
 
 ---
 
-## 15. GenAI Log (how agents feed `GENAI.md`)
+## 15. GenAI evidence: prompt log and `GENAI.md`
 
-At the end of every step, append one entry to **Part 2, section "Session log"** of `GENAI.md`, newest at the bottom.
-The log is evidence for the interview panel, so it must be honest and verifiable.
+Two files, with different owners:
 
-Enforcement: `.claude/settings.json` registers a `Stop` hook (`scripts/hooks/require-genai-log.mjs`). If any file
-changed in the working tree is newer than `GENAI.md`, Claude Code is not allowed to finish the turn until the entry is
-written. Do not disable or bypass the hook. Entry numbers are sequential: read the last number in the file right before
-writing (another agent may have added one).
+| File | Written by | Content |
+|---|---|---|
+| `docs/ai-prompt-log.md` | A Claude Code hook, automatically | Every prompt sent to Claude Code, unedited, in the language it was typed, with a local timestamp and session id. |
+| `GENAI.md` | Jeff, by hand | Part 1 (the exercise answer) and Part 2 (tools, workflow, the corrections he made). Links to the prompt log. |
 
-Entry format:
+How the log is written: `.claude/settings.json` registers a `UserPromptSubmit` hook,
+`node "$CLAUDE_PROJECT_DIR/scripts/hooks/log-prompt.mjs"`. It appends the prompt before Claude sees it, never blocks
+a prompt and prints nothing. The settings file contains no absolute paths, so it works in any clone.
 
-```markdown
-### <NN>. <short title>  (<yyyy-mm-dd>, <tool>, branch `<branch>`)
+Rules for agents:
 
-**Prompt (Jeff):**
-> <Jeff's prompt in English. If Jeff wrote in Spanish, translate it faithfully to English (same meaning and level of
-> detail, no additions) and add "(translated from Spanish)" after the heading.>
-
-**What the AI produced:** <files or changes, 1 to 3 lines>
-
-**What was checked:** <tests run and result, build/lint result, manual checks>
-
-**Accepted / corrected / rejected:** <only what Jeff actually decided. If Jeff has not reviewed yet, write "Pending review by Jeff.">
-
-**Commits:** <hashes or "not committed yet">
-```
-
-Rules:
-
-- Never invent corrections, review comments or opinions on Jeff's behalf. Record only what happened in the session.
-- Record the AI's own mistakes when they are found (failing test, wrong assumption, forbidden pattern caught). They are the most valuable entries.
-- Everything in `GENAI.md` is written in English. Never paste Spanish text into it.
-- Keep each entry short. No emojis.
-- Never paste secrets or tokens into the log.
+- Never edit, reorder or delete entries in `docs/ai-prompt-log.md`. Commit it together with the work of the step.
+- Do not edit `GENAI.md`. When Jeff corrects the AI, he records it there himself.
+- Do not disable or bypass the hook.
+- Never paste secrets or tokens into a prompt: the log is committed to a public repository.

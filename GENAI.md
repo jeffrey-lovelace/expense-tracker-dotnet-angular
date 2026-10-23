@@ -55,10 +55,9 @@ This document has two parts:
 2. **Small steps with a stop.** Each prompt asks for one step. The agent stops, I review, then we continue.
 3. **Tests as the contract.** For business rules the agent writes the failing test first; I check that the test
    actually expresses the rule before accepting the implementation.
-4. **Log everything.** Every step adds an entry below with my prompt, what the AI produced, what was checked and
-   what I accepted or corrected.
-   This is enforced, not left to memory: a Claude Code `Stop` hook (`scripts/hooks/require-genai-log.mjs`) blocks the
-   agent from finishing a turn while any changed file is newer than this log.
+4. **Log everything.** Every prompt is recorded unedited in [docs/ai-prompt-log.md](docs/ai-prompt-log.md) by a
+   Claude Code `UserPromptSubmit` hook (`scripts/hooks/log-prompt.mjs`), so the raw history does not depend on memory.
+   This document keeps the curated part: what I accepted, corrected or rejected.
 
 ### 2.3 What I watch for in AI output
 
