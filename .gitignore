@@ -1,0 +1,49 @@
+# Backend (.NET)
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.rsuser
+.vs/
+TestResults/
+*.trx
+coverage*.xml
+coverage*.json
+*.nupkg
+artifacts/
+
+# SQLite databases created at runtime
+*.db
+*.db-shm
+*.db-wal
+
+# Frontend (Angular)
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/cache/
+frontend/out-tsc/
+frontend/coverage/
+npm-debug.log*
+yarn-error.log*
+testem.log
+.sass-cache/
+__screenshots__/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# IDEs and editors
+.idea/
+*.sublime-workspace
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/
+
+# System files
+.DS_Store
+Thumbs.db
