@@ -137,3 +137,10 @@ Skip the dark-mode login panel note. No new features.
 </pasted_content id="e033">
 ```
 
+## 2026-10-25 13:54:11 -04:00 (session 5290f28e)
+
+```text
+<ide_opened_file>The user opened the file c:\Users\HP\Documents\Workspace\expense-tracker-dotnet-angular\README.md in the IDE. This may or may not be related to the current task.</ide_opened_file>
+Fix AGENTS.md: the default branch is main (develop for integration). Commit it on feature/3.
+```
+

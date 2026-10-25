@@ -38,7 +38,7 @@ Scope required by the exercise:
 | Symlinks | No symlinks anywhere in the repository. `CLAUDE.md` is a regular file. |
 | Emojis | No emojis or emoticons in code, UI, commit messages, logs or documentation. |
 | GenAI | `GENAI.md` must exist at the repository root. It is curated by Jeff; agents do not edit it. Every prompt is logged automatically to `docs/ai-prompt-log.md` (section 15). |
-| Repository | One public GitHub repository. Default branch `master`. |
+| Repository | One public GitHub repository. Default branch `main`; `develop` for integration. |
 | Deadline | Sunday Oct 25, 16:00 Bolivia time (UTC-4). After submission, no more commits until told otherwise. |
 | Warnings | Zero build warnings in .NET, zero errors/warnings in the browser console. |
 
@@ -154,10 +154,10 @@ Api  ──>  Application  ──>  Domain
 
 | Branch | Purpose |
 |---|---|
-| `master` | Submission-ready code. GitHub default branch. Only receives merges from `develop`. Tagged `v1.0.0` at submission. |
+| `main` | Submission-ready code. GitHub default branch. Only receives merges from `develop`. Tagged `v1.0.0` at submission. |
 | `develop` | Integration branch. All work branches start here and merge back here. |
 
-Never force-push to `master` or `develop`.
+Never force-push to `main` or `develop`.
 
 ### 4.2 Branch naming convention
 
@@ -192,7 +192,7 @@ refactor(expenses): share field validation between Create and Update
 
 - Merge work branches into `develop` with `--no-ff` (merge commit). **Do not squash**: squashing hides the
   red/green TDD evidence the reviewers want to see.
-- `develop` into `master` with `--no-ff` when a milestone is stable, and once more for the final submission.
+- `develop` into `main` with `--no-ff` when a milestone is stable, and once more for the final submission.
 
 ---
 
