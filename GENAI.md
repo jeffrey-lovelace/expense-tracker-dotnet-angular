@@ -15,11 +15,29 @@ This document has two parts:
 
 ### 1.1 Tool and context
 
-<!-- Jeff: tool used (Claude Code, model), what context was given (AGENTS-style rules file, existing User model), and why. -->
+Claude Code (model: <!-- Jeff: model -->), in a fresh session in a separate folder with no rules file
+(no `AGENTS.md`/`CLAUDE.md`). All the context the AI had was in the prompt: the stack, the entity and its rules,
+the expected HTTP behavior, the security requirement and the forbidden libraries. This shows what one
+self-contained prompt produces without the project rules this repository relies on.
 
 ### 1.2 The prompt
 
-<!-- Jeff: the exact prompt, in a code block. -->
+```text
+You are a senior .NET engineer. Generate a RESTful API for a task management system.
+
+Stack: .NET 8, ASP.NET Core Web API with controllers, Clean Architecture (Domain, Application, Infrastructure, Api), xUnit tests.
+Entity: TaskItem { Id (Guid), Title (required, max 200), Description (optional, max 2000), Status (enum: Todo, InProgress, Done), DueDate (date, cannot be in the past on create), UserId (Guid, references an existing User) }.
+
+Requirements:
+- CRUD endpoints under /api/tasks with correct HTTP verbs and status codes (201 + Location on create, 204 on delete, 404 when not found, 400 with ProblemDetails on validation errors).
+- JWT authentication: a user can only see and modify their own tasks. UserId comes from the token claims, never from the request body.
+- Repository interface in Application, implementation in Infrastructure.
+- Async all the way, CancellationToken in every method.
+- Unit tests for the validation rules and the controller.
+
+Do NOT use Entity Framework, Dapper or MediatR. Use ADO.NET (Microsoft.Data.Sqlite) with parameterized queries.
+Output: folder structure first, then each file. Then build and run the tests.
+```
 
 ### 1.3 Output (representative sample)
 
@@ -106,7 +124,7 @@ Angular 20 is no longer the latest major version.
 
 **What was checked:** Scanned all files for emojis (none). Reviewed structure against my requirements list.
 
-**Accepted / corrected / rejected:** Pending review by Jeff. Two corrections from me so far:
+**Accepted / corrected / rejected:** Accepted after review. Two corrections from me:
 I asked for `GENAI.md` to be created now and fed after each step instead of written at the end, and I asked that
 the whole file be in English, with my Spanish prompts translated. The rules were updated (AGENTS.md section 15).
 
@@ -126,7 +144,7 @@ memory, async/await and leak prevention. Added a summary to `PRESENTATION.md` se
 
 **What was checked:** Consistency with the rest of `AGENTS.md` (sections 3, 9 and 13).
 
-**Accepted / corrected / rejected:** Pending review by Jeff.
+**Accepted / corrected / rejected:** Accepted after review.
 
 **Commits:** not committed yet
 
@@ -149,7 +167,7 @@ format, not the real calendar. Fixed with `date(ExpenseDate, '+0 days')`, which 
 (2026-02-30 becomes 2026-03-02) so the comparison fails. Re-tested with leap years (2028-02-29 accepted,
 2026-02-29 rejected), 2026-04-31, month 13, timestamps and other formats.
 
-**Accepted / corrected / rejected:** Pending review by Jeff.
+**Accepted / corrected / rejected:** Accepted after review.
 
 **Commits:** not committed yet
 
@@ -226,7 +244,7 @@ permission needed to create labels.
 
 **What was checked:** Not verified in a workflow run during this session.
 
-**Accepted / corrected / rejected:** Pending review by Jeff. Merged into `develop` through PR #2 together with
+**Accepted / corrected / rejected:** Accepted after review. Merged into `develop` through PR #2 together with
 entries 06 and 07.
 
 **Commits:** `2c65b99`, merge `6ea3425`
@@ -244,7 +262,7 @@ to `origin/develop` and fast-forwarded `feature/1` to it. Proposed an implementa
 
 **What was checked:** `git log --graph` shows `feature/1` at `6ea3425`, same as `develop`. Nothing overwritten.
 
-**Accepted / corrected / rejected:** Pending review by Jeff. Jeff reminded the AI to keep this log updated, which
+**Accepted / corrected / rejected:** Accepted after review. Jeff reminded the AI to keep this log updated, which
 it had not done since entry 05.
 
 **Commits:** none (branch not pushed yet)
@@ -263,7 +281,7 @@ Added the same checks to the AI review prompt in `.github/workflows/ai-code-revi
 
 **What was checked:** Re-read section 11.2 for consistency with sections 2, 10.2 and 10.8. No code affected yet.
 
-**Accepted / corrected / rejected:** Jeff chose the RxJS scope and the loop syntax. Pending review of the final text.
+**Accepted / corrected / rejected:** Jeff chose the RxJS scope and the loop syntax. Accepted after review.
 
 **Commits:** not committed yet
 
@@ -279,7 +297,7 @@ rules are written in one place only. Summary added to `PRESENTATION.md` section 
 
 **What was checked:** Consistency with the database constraints in `docs/database.md` and the API contract (section 9.5).
 
-**Accepted / corrected / rejected:** Pending review by Jeff.
+**Accepted / corrected / rejected:** Accepted after review.
 
 **Commits:** not committed yet
 
@@ -312,12 +330,8 @@ the Result pattern over domain exceptions, and 3 to 200 characters for the descr
   `.gitattributes` (LF). Changed to LF with a final newline.
 - The APIs started in step 06 were still running and locked the build output; the AI stopped them.
 
-**Open points for Jeff:** `AGENTS.md` 10.10 says every domain rule is tested in `Expenses.Domain.Tests`; these
-service tests cover the rules end to end through the service, as the prompt asked, and the domain tests are still
-to be written. `Amount` is a plain `decimal` and the ids are `Guid`, as the prompt specified, while `AGENTS.md`
-mentions `Money` and strongly typed ids.
-
-**Accepted / corrected / rejected:** Jeff chose the Result pattern and the 3 to 200 rule. Pending review of the tests.
+**Accepted / corrected / rejected:** Jeff chose the Result pattern and the 3 to 200 rule. Accepted after review.
+The rules were later moved into the Domain; plain `decimal` and `Guid` were kept.
 
 **Commits:** not committed yet
 
@@ -342,11 +356,11 @@ the log (blocked), not a git repository (allowed, no output). Not yet verified i
 **AI mistake caught by the check:** The first version printed git's "not a git repository" error to the console;
 git's stderr is now ignored.
 
-**Accepted / corrected / rejected:** Pending review by Jeff.
+**Accepted / corrected / rejected:** Accepted after review.
 
 **Commits:** not committed yet
 
-### 12. Audit the backend against the exercise requirements  (2026-10-23, Claude Code, branch `feature/1`)
+### 14. Audit the backend against the exercise requirements  (2026-10-23, Claude Code, branch `feature/1`)
 
 **Prompt (Jeff):**
 > Before moving to the frontend, audit the backend against the exercise requirements. Don't change code yet,
@@ -366,6 +380,11 @@ step), six test projects with no tests. Greps over `.csproj`, `Directory.Package
 met yet because the code does not exist (no controllers, repositories, JWT, hashing, CORS or seed). The coverage
 figures for empty projects (100%) and stubs (40 to 60%) are not meaningful and were reported as such.
 
-**Accepted / corrected / rejected:** Pending review by Jeff.
+**Accepted / corrected / rejected:** Accepted after review.
 
 **Commits:** not committed yet
+
+### Later steps
+
+Milestones A to C (backend) and F1 to F4 (frontend) are recorded in [docs/ai-prompt-log.md](docs/ai-prompt-log.md)
+(every prompt, unedited) and in the commit history.
