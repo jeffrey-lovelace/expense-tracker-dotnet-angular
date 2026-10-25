@@ -15,7 +15,7 @@ This document has two parts:
 
 ### 1.1 Tool and context
 
-Claude Code (model: <!-- Jeff: model -->), in a fresh session in a separate folder with no rules file
+Claude Code (model: Claude Opus 5.5), in a fresh session in a separate folder with no rules file
 (no `AGENTS.md`/`CLAUDE.md`). All the context the AI had was in the prompt: the stack, the entity and its rules,
 the expected HTTP behavior, the security requirement and the forbidden libraries. This shows what one
 self-contained prompt produces without the project rules this repository relies on.
@@ -105,7 +105,7 @@ I also pasted the recruiter's email (public single repo, `GENAI.md` at root, no 
 
 **Accepted / corrected / rejected:** Accepted the gap analysis and added `PRESENTATION.md` to the plan.
 
-**Commits:** not committed yet
+**Commits:** none (planning only, no files)
 
 ### 02. Write the agent rules and the presentation  (2026-10-22, Claude, branch `develop`)
 
@@ -128,7 +128,7 @@ Angular 20 is no longer the latest major version.
 I asked for `GENAI.md` to be created now and fed after each step instead of written at the end, and I asked that
 the whole file be in English, with my Spanish prompts translated. The rules were updated (AGENTS.md section 15).
 
-**Commits:** not committed yet
+**Commits:** `056a2b6`
 
 ### 03. Add engineering principles to the agent rules  (2026-10-22, Claude, branch `develop`)
 
@@ -146,7 +146,7 @@ memory, async/await and leak prevention. Added a summary to `PRESENTATION.md` se
 
 **Accepted / corrected / rejected:** Accepted after review.
 
-**Commits:** not committed yet
+**Commits:** `056a2b6`
 
 ### 04. Generate the database schema  (2026-10-22, Claude, branch `develop`)
 
@@ -169,7 +169,7 @@ format, not the real calendar. Fixed with `date(ExpenseDate, '+0 days')`, which 
 
 **Accepted / corrected / rejected:** Accepted after review.
 
-**Commits:** not committed yet
+**Commits:** `056a2b6`
 
 ### 05. Remove duplicated SQL from the documentation  (2026-10-22, Claude, branch `develop`)
 
@@ -187,7 +187,7 @@ and added a rule to `AGENTS.md` that SQL lives only in the repositories.
 **Accepted / corrected / rejected:** Corrected by Jeff: he questioned keeping the queries in the docs and approved
 removing them.
 
-**Commits:** not committed yet
+**Commits:** `056a2b6`
 
 ### 06. Scaffold the .NET solution and the Angular app  (2026-10-22, Claude Code, branch `chore/infra-solution-scaffold`) (translated from Spanish)
 
@@ -283,7 +283,7 @@ Added the same checks to the AI review prompt in `.github/workflows/ai-code-revi
 
 **Accepted / corrected / rejected:** Jeff chose the RxJS scope and the loop syntax. Accepted after review.
 
-**Commits:** not committed yet
+**Commits:** `1f88fe3`
 
 ### 11. Add rules for DTOs, business rules and data validation  (2026-10-23, Claude, branch `feature/1`)
 
@@ -299,7 +299,7 @@ rules are written in one place only. Summary added to `PRESENTATION.md` section 
 
 **Accepted / corrected / rejected:** Accepted after review.
 
-**Commits:** not committed yet
+**Commits:** `8f81aaf`
 
 ### 12. Expenses: failing tests for ExpenseService (TDD red)  (2026-10-23, Claude Code, branch `feature/1`)
 
@@ -333,7 +333,7 @@ the Result pattern over domain exceptions, and 3 to 200 characters for the descr
 **Accepted / corrected / rejected:** Jeff chose the Result pattern and the 3 to 200 rule. Accepted after review.
 The rules were later moved into the Domain; plain `decimal` and `Guid` were kept.
 
-**Commits:** not committed yet
+**Commits:** `8f81aaf`
 
 ### 13. Enforce the GenAI log with a Claude Code hook  (2026-10-23, Claude, branch `feature/1`)
 
@@ -358,7 +358,7 @@ git's stderr is now ignored.
 
 **Accepted / corrected / rejected:** Accepted after review.
 
-**Commits:** not committed yet
+**Commits:** `8f81aaf`
 
 ### 14. Audit the backend against the exercise requirements  (2026-10-23, Claude Code, branch `feature/1`)
 
@@ -382,7 +382,7 @@ figures for empty projects (100%) and stubs (40 to 60%) are not meaningful and w
 
 **Accepted / corrected / rejected:** Accepted after review.
 
-**Commits:** not committed yet
+**Commits:** none (report only, no code changes)
 
 ### Later steps
 
