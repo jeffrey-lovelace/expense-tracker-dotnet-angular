@@ -15,8 +15,9 @@ This document has two parts:
 
 ### 1.1 Tool and context
 
-Claude Code (model: Claude Opus 5.5), in a fresh session in a separate folder with no rules file
-(no `AGENTS.md`/`CLAUDE.md`). All the context the AI had was in the prompt: the stack, the entity and its rules,
+Claude Code (model: Claude Opus 5.5), in a fresh headless session (`claude -p`, `--permission-mode acceptEdits`,
+tools limited to `dotnet`, Read, Write and Edit) run in a separate folder (`C:\genai-tasks`) with no rules file
+(no `AGENTS.md`/`CLAUDE.md`, no global one). The full session output was saved to `generation-output.txt`. All the context the AI had was in the prompt: the stack, the entity and its rules,
 the expected HTTP behavior, the security requirement and the forbidden libraries. This shows what one
 self-contained prompt produces without the project rules this repository relies on.
 
@@ -41,19 +42,106 @@ Output: folder structure first, then each file. Then build and run the tests.
 
 ### 1.3 Output (representative sample)
 
-<!-- Jeff: the generated code, or the most relevant parts (entity, service/validation, controller, one test). -->
+About 40 files: `TaskManager.Domain`, `.Application`, `.Infrastructure` and `.Api`, plus
+`TaskManager.UnitTests` (validators, controller with NSubstitute, service) and `TaskManager.IntegrationTests`
+(`WebApplicationFactory`, real JWTs, temporary SQLite file). It wrote the `.sln` and `.csproj` files by hand,
+because `dotnet new` was not in its allowed tools.
+
+Repository: every query is parameterized and ownership is enforced in SQL (`SqliteTaskRepository.cs`):
+
+```csharp
+command.CommandText = $"{SelectColumns} WHERE Id = $id AND UserId = $userId";
+command.Parameters.AddWithValue("$id", SqliteValues.ToDb(id));
+command.Parameters.AddWithValue("$userId", SqliteValues.ToDb(userId));
+```
+
+Controller: the user id comes from the `sub` claim, and the request records have no `UserId` field (`TasksController.cs`):
+
+```csharp
+if (!User.TryGetUserId(out var userId))
+{
+    return Unauthorized();
+}
+
+var result = await taskService.CreateAsync(userId, request, cancellationToken);
+return result.Status switch
+{
+    ResultStatus.Success => CreatedAtRoute(GetByIdRouteName, new { id = result.Value!.Id }, result.Value),
+    ResultStatus.Invalid => ValidationFailed(result.Errors),
+    _ => NotFound(),
+};
+```
+
+Due-date rule (`CreateTaskRequestValidator.cs`):
+
+```csharp
+// "Today" is evaluated in UTC; a due date of today is allowed.
+var today = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+if (dueDate < today)
+{
+    result.AddError(TaskFieldRules.DueDate, "Due date cannot be in the past.");
+}
+```
+
+Ownership test (`TasksApiTests.cs`):
+
+```csharp
+Assert.Equal(HttpStatusCode.NotFound, (await bob.GetAsync(url)).StatusCode);
+Assert.Equal(HttpStatusCode.NotFound,
+    (await bob.PutAsJsonAsync(url, new UpdateTaskRequest("pwned", null, TaskItemStatus.Done, NextWeek), Json)).StatusCode);
+Assert.Equal(HttpStatusCode.NotFound, (await bob.DeleteAsync(url)).StatusCode);
+```
 
 ### 1.4 How I validated the AI's suggestions
 
-<!-- Jeff: build, tests, reading every line, checking against the requirements, security review. -->
+- **Reviewer session.** A second Claude Code session reviewed the generated code against eight checks. For each
+  check it quoted the relevant line and gave pass or fail. I then read every flagged line myself.
+- **Build and tests**, run by me (not taken from the generator's own report):
+  - `dotnet build`: 0 warnings, 0 errors.
+  - `dotnet test`: 43/43 unit tests and 8/8 integration tests passed.
+- **Packages:** `dotnet list package --vulnerable --include-transitive` and `--outdated`.
 
-### 1.5 What I corrected or improved
+| # | Check | Evidence | Result |
+|---|---|---|---|
+| 1 | UserId from token claims | `principal.FindFirstValue(JwtRegisteredClaimNames.Sub)`; `CreateTaskRequest(string? Title, string? Description, TaskItemStatus? Status, DateOnly? DueDate)` has no `UserId` | Pass |
+| 2 | SQL parameterized and filtered by UserId | `WHERE Id = $id AND UserId = $userId` on get, update and delete; `WHERE UserId = $userId` on list. The interpolated `{SelectColumns}` is a constant, not user input. | Pass |
+| 3 | Another user's task returns 404 | `return task is null ? NotFound() : Ok(task);`, covered by `Users_cannot_see_or_modify_each_others_tasks` | Pass |
+| 4 | Due-date clock and time zone | Injected `TimeProvider` (testable, `FixedTimeProvider` in tests), but "today" is computed in **UTC** | Partial |
+| 5 | JWT actually validated | `ValidateIssuer`, `ValidateAudience`, `ValidateIssuerSigningKey`, `ValidateLifetime`, `RequireExpirationTime`, `ValidAlgorithms = [HmacSha256]`, `ClockSkew = 30s`, plus a fallback policy that requires authentication | Pass |
+| 6 | Tests cover failure cases | Missing or over-long title and description, status outside the enum, past due date, all errors reported together, no token, missing or non-GUID `sub`, `UserId` in the body ignored, cross-user 404 | Pass |
+| 7 | Pagination on `GET /api/tasks` | `List(CancellationToken cancellationToken)` returns every task the user owns | Fail |
+| 8 | Forbidden or outdated packages | No EF, Dapper or MediatR. But `Microsoft.Data.Sqlite 8.0.11` pulls in `SQLitePCLRaw.lib.e_sqlite3 2.1.6`, which has a **High** severity advisory (GHSA-2m69-gcr7-jv3q). The 8.0.x packages are pinned to an old patch, and .NET 8 support ends Nov 10, 2026. | Fail |
 
-<!-- Jeff: concrete before/after examples. -->
+### 1.5 What I would correct
+
+1. **Due date in the user's time zone.** UTC "today" is wrong for anyone outside UTC. In Bolivia (UTC-4), a task
+   created at 21:00 on Oct 25 with that day's date is rejected, because UTC is already Oct 26. Fix: the client sends
+   its date or IANA time zone, or the rule allows a tolerance of one day. Then add a test at 23:00 local time.
+2. **Paginate the list.** Add `page` and `pageSize` with server-side limits (`pageSize` from 1 to 100), use
+   `LIMIT $limit OFFSET $offset`, return `totalCount`, and add an index on `(UserId, DueDate)`.
+3. **Fix the vulnerable dependency.** Update `Microsoft.Data.Sqlite` to the latest 8.0.x, or pin
+   `SQLitePCLRaw.bundle_e_sqlite3` to a patched version, and plan the move to .NET 10 LTS.
+4. **Smaller points:**
+   - Remove `ConfigureAwait(false)` (noise in ASP.NET Core).
+   - `UseHttpsRedirection` runs with no HTTPS profile in development.
+   - The API cannot register users or issue tokens, so it cannot be tried by hand. The generator stated this
+     limitation.
 
 ### 1.6 Edge cases, authentication and validation
 
-<!-- Jeff: due_date in the past, invalid status transitions, empty title, ownership (404 vs 403), JWT, pagination limits. -->
+| Case | Generated behavior | Verdict |
+|---|---|---|
+| Empty or whitespace title | 400, `title: "Title is required."` | Correct |
+| Title over 200, description over 2000 | 400 with a field error; the database `CHECK` constraints are a second guard | Correct |
+| Status outside the enum (`9`) | 400 (`Enum.IsDefined`) | Correct |
+| Status transitions (for example Done back to Todo) | Allowed; no transition rules | Acceptable (none were required) |
+| Due date today or in the past on create | Today allowed, yesterday rejected, evaluated in UTC | Time-zone bug, see 1.5 |
+| Past due date on update | Allowed (an existing task can be overdue) | Reasonable, documented in code |
+| `UserId` sent in the body | Ignored (not part of the contract), covered by a test | Correct |
+| Another user's task | 404 on GET, PUT and DELETE, so ids cannot be enumerated | Correct |
+| No token, expired token, wrong signature | 401 through the JwtBearer handler and the fallback policy | Correct |
+| Valid token for a user that does not exist | 400 on create (`userId` error) | Debatable; 401 or 403 also fit |
+| Large task list | Unbounded response | Missing pagination, see 1.5 |
 
 ---
 
