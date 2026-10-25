@@ -1,0 +1,13 @@
+h2 {
+  font-family: var(--et-font-serif);
+}
+
+p {
+  margin: 0;
+}
+
+// A destructive confirmation uses the danger color, not the primary one.
+.danger {
+  --mat-button-filled-container-color: var(--et-danger);
+  --mat-button-filled-label-text-color: #ffffff;
+}

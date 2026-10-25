@@ -1,0 +1,5 @@
+<p class="title">{{ title() }}</p>
+<p class="message">{{ message() }}</p>
+@if (actionLabel(); as label) {
+  <button mat-flat-button type="button" (click)="action.emit()">{{ label }}</button>
+}

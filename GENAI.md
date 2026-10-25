@@ -15,27 +15,133 @@ This document has two parts:
 
 ### 1.1 Tool and context
 
-<!-- Jeff: tool used (Claude Code, model), what context was given (AGENTS-style rules file, existing User model), and why. -->
+Claude Code (model: Claude Opus 5.5), in a fresh headless session (`claude -p`, `--permission-mode acceptEdits`,
+tools limited to `dotnet`, Read, Write and Edit) run in a separate folder (`C:\genai-tasks`) with no rules file
+(no `AGENTS.md`/`CLAUDE.md`, no global one). The full session output was saved to `generation-output.txt`. All the context the AI had was in the prompt: the stack, the entity and its rules,
+the expected HTTP behavior, the security requirement and the forbidden libraries. This shows what one
+self-contained prompt produces without the project rules this repository relies on.
 
 ### 1.2 The prompt
 
-<!-- Jeff: the exact prompt, in a code block. -->
+```text
+You are a senior .NET engineer. Generate a RESTful API for a task management system.
+
+Stack: .NET 8, ASP.NET Core Web API with controllers, Clean Architecture (Domain, Application, Infrastructure, Api), xUnit tests.
+Entity: TaskItem { Id (Guid), Title (required, max 200), Description (optional, max 2000), Status (enum: Todo, InProgress, Done), DueDate (date, cannot be in the past on create), UserId (Guid, references an existing User) }.
+
+Requirements:
+- CRUD endpoints under /api/tasks with correct HTTP verbs and status codes (201 + Location on create, 204 on delete, 404 when not found, 400 with ProblemDetails on validation errors).
+- JWT authentication: a user can only see and modify their own tasks. UserId comes from the token claims, never from the request body.
+- Repository interface in Application, implementation in Infrastructure.
+- Async all the way, CancellationToken in every method.
+- Unit tests for the validation rules and the controller.
+
+Do NOT use Entity Framework, Dapper or MediatR. Use ADO.NET (Microsoft.Data.Sqlite) with parameterized queries.
+Output: folder structure first, then each file. Then build and run the tests.
+```
 
 ### 1.3 Output (representative sample)
 
-<!-- Jeff: the generated code, or the most relevant parts (entity, service/validation, controller, one test). -->
+About 40 files: `TaskManager.Domain`, `.Application`, `.Infrastructure` and `.Api`, plus
+`TaskManager.UnitTests` (validators, controller with NSubstitute, service) and `TaskManager.IntegrationTests`
+(`WebApplicationFactory`, real JWTs, temporary SQLite file). It wrote the `.sln` and `.csproj` files by hand,
+because `dotnet new` was not in its allowed tools.
+
+Repository: every query is parameterized and ownership is enforced in SQL (`SqliteTaskRepository.cs`):
+
+```csharp
+command.CommandText = $"{SelectColumns} WHERE Id = $id AND UserId = $userId";
+command.Parameters.AddWithValue("$id", SqliteValues.ToDb(id));
+command.Parameters.AddWithValue("$userId", SqliteValues.ToDb(userId));
+```
+
+Controller: the user id comes from the `sub` claim, and the request records have no `UserId` field (`TasksController.cs`):
+
+```csharp
+if (!User.TryGetUserId(out var userId))
+{
+    return Unauthorized();
+}
+
+var result = await taskService.CreateAsync(userId, request, cancellationToken);
+return result.Status switch
+{
+    ResultStatus.Success => CreatedAtRoute(GetByIdRouteName, new { id = result.Value!.Id }, result.Value),
+    ResultStatus.Invalid => ValidationFailed(result.Errors),
+    _ => NotFound(),
+};
+```
+
+Due-date rule (`CreateTaskRequestValidator.cs`):
+
+```csharp
+// "Today" is evaluated in UTC; a due date of today is allowed.
+var today = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+if (dueDate < today)
+{
+    result.AddError(TaskFieldRules.DueDate, "Due date cannot be in the past.");
+}
+```
+
+Ownership test (`TasksApiTests.cs`):
+
+```csharp
+Assert.Equal(HttpStatusCode.NotFound, (await bob.GetAsync(url)).StatusCode);
+Assert.Equal(HttpStatusCode.NotFound,
+    (await bob.PutAsJsonAsync(url, new UpdateTaskRequest("pwned", null, TaskItemStatus.Done, NextWeek), Json)).StatusCode);
+Assert.Equal(HttpStatusCode.NotFound, (await bob.DeleteAsync(url)).StatusCode);
+```
 
 ### 1.4 How I validated the AI's suggestions
 
-<!-- Jeff: build, tests, reading every line, checking against the requirements, security review. -->
+- **Reviewer session.** A second Claude Code session reviewed the generated code against eight checks. For each
+  check it quoted the relevant line and gave pass or fail. I then read every flagged line myself.
+- **Build and tests**, run by me (not taken from the generator's own report):
+  - `dotnet build`: 0 warnings, 0 errors.
+  - `dotnet test`: 43/43 unit tests and 8/8 integration tests passed.
+- **Packages:** `dotnet list package --vulnerable --include-transitive` and `--outdated`.
 
-### 1.5 What I corrected or improved
+| # | Check | Evidence | Result |
+|---|---|---|---|
+| 1 | UserId from token claims | `principal.FindFirstValue(JwtRegisteredClaimNames.Sub)`; `CreateTaskRequest(string? Title, string? Description, TaskItemStatus? Status, DateOnly? DueDate)` has no `UserId` | Pass |
+| 2 | SQL parameterized and filtered by UserId | `WHERE Id = $id AND UserId = $userId` on get, update and delete; `WHERE UserId = $userId` on list. The interpolated `{SelectColumns}` is a constant, not user input. | Pass |
+| 3 | Another user's task returns 404 | `return task is null ? NotFound() : Ok(task);`, covered by `Users_cannot_see_or_modify_each_others_tasks` | Pass |
+| 4 | Due-date clock and time zone | Injected `TimeProvider` (testable, `FixedTimeProvider` in tests), but "today" is computed in **UTC** | Partial |
+| 5 | JWT actually validated | `ValidateIssuer`, `ValidateAudience`, `ValidateIssuerSigningKey`, `ValidateLifetime`, `RequireExpirationTime`, `ValidAlgorithms = [HmacSha256]`, `ClockSkew = 30s`, plus a fallback policy that requires authentication | Pass |
+| 6 | Tests cover failure cases | Missing or over-long title and description, status outside the enum, past due date, all errors reported together, no token, missing or non-GUID `sub`, `UserId` in the body ignored, cross-user 404 | Pass |
+| 7 | Pagination on `GET /api/tasks` | `List(CancellationToken cancellationToken)` returns every task the user owns | Fail |
+| 8 | Forbidden or outdated packages | No EF, Dapper or MediatR. But `Microsoft.Data.Sqlite 8.0.11` pulls in `SQLitePCLRaw.lib.e_sqlite3 2.1.6`, which has a **High** severity advisory (GHSA-2m69-gcr7-jv3q). The 8.0.x packages are pinned to an old patch, and .NET 8 support ends Nov 10, 2026. | Fail |
 
-<!-- Jeff: concrete before/after examples. -->
+### 1.5 What I would correct
+
+1. **Due date in the user's time zone.** UTC "today" is wrong for anyone outside UTC. In Bolivia (UTC-4), a task
+   created at 21:00 on Oct 25 with that day's date is rejected, because UTC is already Oct 26. Fix: the client sends
+   its date or IANA time zone, or the rule allows a tolerance of one day. Then add a test at 23:00 local time.
+2. **Paginate the list.** Add `page` and `pageSize` with server-side limits (`pageSize` from 1 to 100), use
+   `LIMIT $limit OFFSET $offset`, return `totalCount`, and add an index on `(UserId, DueDate)`.
+3. **Fix the vulnerable dependency.** Update `Microsoft.Data.Sqlite` to the latest 8.0.x, or pin
+   `SQLitePCLRaw.bundle_e_sqlite3` to a patched version, and plan the move to .NET 10 LTS.
+4. **Smaller points:**
+   - Remove `ConfigureAwait(false)` (noise in ASP.NET Core).
+   - `UseHttpsRedirection` runs with no HTTPS profile in development.
+   - The API cannot register users or issue tokens, so it cannot be tried by hand. The generator stated this
+     limitation.
 
 ### 1.6 Edge cases, authentication and validation
 
-<!-- Jeff: due_date in the past, invalid status transitions, empty title, ownership (404 vs 403), JWT, pagination limits. -->
+| Case | Generated behavior | Verdict |
+|---|---|---|
+| Empty or whitespace title | 400, `title: "Title is required."` | Correct |
+| Title over 200, description over 2000 | 400 with a field error; the database `CHECK` constraints are a second guard | Correct |
+| Status outside the enum (`9`) | 400 (`Enum.IsDefined`) | Correct |
+| Status transitions (for example Done back to Todo) | Allowed; no transition rules | Acceptable (none were required) |
+| Due date today or in the past on create | Today allowed, yesterday rejected, evaluated in UTC | Time-zone bug, see 1.5 |
+| Past due date on update | Allowed (an existing task can be overdue) | Reasonable, documented in code |
+| `UserId` sent in the body | Ignored (not part of the contract), covered by a test | Correct |
+| Another user's task | 404 on GET, PUT and DELETE, so ids cannot be enumerated | Correct |
+| No token, expired token, wrong signature | 401 through the JwtBearer handler and the fallback policy | Correct |
+| Valid token for a user that does not exist | 400 on create (`userId` error) | Debatable; 401 or 403 also fit |
+| Large task list | Unbounded response | Missing pagination, see 1.5 |
 
 ---
 
@@ -87,7 +193,7 @@ I also pasted the recruiter's email (public single repo, `GENAI.md` at root, no 
 
 **Accepted / corrected / rejected:** Accepted the gap analysis and added `PRESENTATION.md` to the plan.
 
-**Commits:** not committed yet
+**Commits:** none (planning only, no files)
 
 ### 02. Write the agent rules and the presentation  (2026-10-22, Claude, branch `develop`)
 
@@ -106,11 +212,11 @@ Angular 20 is no longer the latest major version.
 
 **What was checked:** Scanned all files for emojis (none). Reviewed structure against my requirements list.
 
-**Accepted / corrected / rejected:** Pending review by Jeff. Two corrections from me so far:
+**Accepted / corrected / rejected:** Accepted after review. Two corrections from me:
 I asked for `GENAI.md` to be created now and fed after each step instead of written at the end, and I asked that
 the whole file be in English, with my Spanish prompts translated. The rules were updated (AGENTS.md section 15).
 
-**Commits:** not committed yet
+**Commits:** `056a2b6`
 
 ### 03. Add engineering principles to the agent rules  (2026-10-22, Claude, branch `develop`)
 
@@ -126,9 +232,9 @@ memory, async/await and leak prevention. Added a summary to `PRESENTATION.md` se
 
 **What was checked:** Consistency with the rest of `AGENTS.md` (sections 3, 9 and 13).
 
-**Accepted / corrected / rejected:** Pending review by Jeff.
+**Accepted / corrected / rejected:** Accepted after review.
 
-**Commits:** not committed yet
+**Commits:** `056a2b6`
 
 ### 04. Generate the database schema  (2026-10-22, Claude, branch `develop`)
 
@@ -149,9 +255,9 @@ format, not the real calendar. Fixed with `date(ExpenseDate, '+0 days')`, which 
 (2026-02-30 becomes 2026-03-02) so the comparison fails. Re-tested with leap years (2028-02-29 accepted,
 2026-02-29 rejected), 2026-04-31, month 13, timestamps and other formats.
 
-**Accepted / corrected / rejected:** Pending review by Jeff.
+**Accepted / corrected / rejected:** Accepted after review.
 
-**Commits:** not committed yet
+**Commits:** `056a2b6`
 
 ### 05. Remove duplicated SQL from the documentation  (2026-10-22, Claude, branch `develop`)
 
@@ -169,7 +275,7 @@ and added a rule to `AGENTS.md` that SQL lives only in the repositories.
 **Accepted / corrected / rejected:** Corrected by Jeff: he questioned keeping the queries in the docs and approved
 removing them.
 
-**Commits:** not committed yet
+**Commits:** `056a2b6`
 
 ### 06. Scaffold the .NET solution and the Angular app  (2026-10-22, Claude Code, branch `chore/infra-solution-scaffold`) (translated from Spanish)
 
@@ -226,7 +332,7 @@ permission needed to create labels.
 
 **What was checked:** Not verified in a workflow run during this session.
 
-**Accepted / corrected / rejected:** Pending review by Jeff. Merged into `develop` through PR #2 together with
+**Accepted / corrected / rejected:** Accepted after review. Merged into `develop` through PR #2 together with
 entries 06 and 07.
 
 **Commits:** `2c65b99`, merge `6ea3425`
@@ -244,7 +350,7 @@ to `origin/develop` and fast-forwarded `feature/1` to it. Proposed an implementa
 
 **What was checked:** `git log --graph` shows `feature/1` at `6ea3425`, same as `develop`. Nothing overwritten.
 
-**Accepted / corrected / rejected:** Pending review by Jeff. Jeff reminded the AI to keep this log updated, which
+**Accepted / corrected / rejected:** Accepted after review. Jeff reminded the AI to keep this log updated, which
 it had not done since entry 05.
 
 **Commits:** none (branch not pushed yet)
@@ -263,9 +369,9 @@ Added the same checks to the AI review prompt in `.github/workflows/ai-code-revi
 
 **What was checked:** Re-read section 11.2 for consistency with sections 2, 10.2 and 10.8. No code affected yet.
 
-**Accepted / corrected / rejected:** Jeff chose the RxJS scope and the loop syntax. Pending review of the final text.
+**Accepted / corrected / rejected:** Jeff chose the RxJS scope and the loop syntax. Accepted after review.
 
-**Commits:** not committed yet
+**Commits:** `1f88fe3`
 
 ### 11. Add rules for DTOs, business rules and data validation  (2026-10-23, Claude, branch `feature/1`)
 
@@ -279,9 +385,9 @@ rules are written in one place only. Summary added to `PRESENTATION.md` section 
 
 **What was checked:** Consistency with the database constraints in `docs/database.md` and the API contract (section 9.5).
 
-**Accepted / corrected / rejected:** Pending review by Jeff.
+**Accepted / corrected / rejected:** Accepted after review.
 
-**Commits:** not committed yet
+**Commits:** `8f81aaf`
 
 ### 12. Expenses: failing tests for ExpenseService (TDD red)  (2026-10-23, Claude Code, branch `feature/1`)
 
@@ -312,14 +418,10 @@ the Result pattern over domain exceptions, and 3 to 200 characters for the descr
   `.gitattributes` (LF). Changed to LF with a final newline.
 - The APIs started in step 06 were still running and locked the build output; the AI stopped them.
 
-**Open points for Jeff:** `AGENTS.md` 10.10 says every domain rule is tested in `Expenses.Domain.Tests`; these
-service tests cover the rules end to end through the service, as the prompt asked, and the domain tests are still
-to be written. `Amount` is a plain `decimal` and the ids are `Guid`, as the prompt specified, while `AGENTS.md`
-mentions `Money` and strongly typed ids.
+**Accepted / corrected / rejected:** Jeff chose the Result pattern and the 3 to 200 rule. Accepted after review.
+The rules were later moved into the Domain; plain `decimal` and `Guid` were kept.
 
-**Accepted / corrected / rejected:** Jeff chose the Result pattern and the 3 to 200 rule. Pending review of the tests.
-
-**Commits:** not committed yet
+**Commits:** `8f81aaf`
 
 ### 13. Enforce the GenAI log with a Claude Code hook  (2026-10-23, Claude, branch `feature/1`)
 
@@ -342,11 +444,11 @@ the log (blocked), not a git repository (allowed, no output). Not yet verified i
 **AI mistake caught by the check:** The first version printed git's "not a git repository" error to the console;
 git's stderr is now ignored.
 
-**Accepted / corrected / rejected:** Pending review by Jeff.
+**Accepted / corrected / rejected:** Accepted after review.
 
-**Commits:** not committed yet
+**Commits:** `8f81aaf`
 
-### 12. Audit the backend against the exercise requirements  (2026-10-23, Claude Code, branch `feature/1`)
+### 14. Audit the backend against the exercise requirements  (2026-10-23, Claude Code, branch `feature/1`)
 
 **Prompt (Jeff):**
 > Before moving to the frontend, audit the backend against the exercise requirements. Don't change code yet,
@@ -366,6 +468,11 @@ step), six test projects with no tests. Greps over `.csproj`, `Directory.Package
 met yet because the code does not exist (no controllers, repositories, JWT, hashing, CORS or seed). The coverage
 figures for empty projects (100%) and stubs (40 to 60%) are not meaningful and were reported as such.
 
-**Accepted / corrected / rejected:** Pending review by Jeff.
+**Accepted / corrected / rejected:** Accepted after review.
 
-**Commits:** not committed yet
+**Commits:** none (report only, no code changes)
+
+### Later steps
+
+Milestones A to C (backend) and F1 to F4 (frontend) are recorded in [docs/ai-prompt-log.md](docs/ai-prompt-log.md)
+(every prompt, unedited) and in the commit history.

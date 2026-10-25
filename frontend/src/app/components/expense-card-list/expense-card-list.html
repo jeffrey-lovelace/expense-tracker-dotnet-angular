@@ -1,0 +1,48 @@
+<ul class="cards" [attr.aria-busy]="loading()" aria-label="Your expenses, newest first">
+  @if (loading()) {
+    @for (card of skeletonCards; track card) {
+      <li class="card">
+        <div class="main">
+          <app-skeleton width="60%" />
+          <app-skeleton width="40%" />
+        </div>
+        <app-skeleton width="64px" />
+      </li>
+    }
+  } @else {
+    @for (expense of expenses(); track expense.id) {
+      <li class="card">
+        <div class="main">
+          <span class="description">{{ expense.description }}</span>
+          <span class="meta" [attr.data-category]="expense.category">
+            <span class="et-mono">{{ expense.date | ledgerDate }}</span>
+            <span class="et-marker"></span>
+            {{ expense.category | categoryLabel: categories() }}
+          </span>
+        </div>
+        <div class="side">
+          <span class="amount et-mono">{{ expense.amount | money }}</span>
+          <span class="actions">
+            <button
+              mat-icon-button
+              type="button"
+              [attr.aria-label]="'Edit ' + expense.description"
+              (click)="edit.emit(expense)"
+            >
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button
+              mat-icon-button
+              type="button"
+              class="danger"
+              [attr.aria-label]="'Delete ' + expense.description"
+              (click)="remove.emit(expense)"
+            >
+              <mat-icon>delete</mat-icon>
+            </button>
+          </span>
+        </div>
+      </li>
+    }
+  }
+</ul>

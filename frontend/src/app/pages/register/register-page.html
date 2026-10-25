@@ -1,0 +1,73 @@
+<app-auth-layout>
+  <h1>Create an account</h1>
+  <p class="lead">It takes a minute. You will be signed in right away.</p>
+
+  @if (formError(); as message) {
+    <p class="form-error" role="alert">{{ message }}</p>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <mat-form-field appearance="outline">
+      <mat-label>Name</mat-label>
+      <input matInput formControlName="displayName" autocomplete="name" />
+      @if (form.controls.displayName.hasError('required')) {
+        <mat-error>Enter your name.</mat-error>
+      } @else if (
+        form.controls.displayName.hasError('minlength') ||
+        form.controls.displayName.hasError('maxlength')
+      ) {
+        <mat-error>Use between 2 and 80 characters.</mat-error>
+      } @else if (form.controls.displayName.hasError('server')) {
+        <mat-error>{{ form.controls.displayName.getError('server') }}</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Email</mat-label>
+      <input matInput type="email" formControlName="email" autocomplete="email" />
+      @if (form.controls.email.hasError('required')) {
+        <mat-error>Enter your email.</mat-error>
+      } @else if (
+        form.controls.email.hasError('email') || form.controls.email.hasError('maxlength')
+      ) {
+        <mat-error>Enter a valid email address.</mat-error>
+      } @else if (form.controls.email.hasError('server')) {
+        <mat-error>{{ form.controls.email.getError('server') }}</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Password</mat-label>
+      <input matInput type="password" formControlName="password" autocomplete="new-password" />
+      <mat-hint>8 or more characters, with upper and lower case, a digit and a symbol.</mat-hint>
+      @if (form.controls.password.hasError('required')) {
+        <mat-error>Choose a password.</mat-error>
+      } @else if (
+        form.controls.password.hasError('minlength') || form.controls.password.hasError('maxlength')
+      ) {
+        <mat-error>Use between 8 and 128 characters.</mat-error>
+      } @else if (form.controls.password.hasError('uppercase')) {
+        <mat-error>Add an upper case letter.</mat-error>
+      } @else if (form.controls.password.hasError('lowercase')) {
+        <mat-error>Add a lower case letter.</mat-error>
+      } @else if (form.controls.password.hasError('digit')) {
+        <mat-error>Add a digit.</mat-error>
+      } @else if (form.controls.password.hasError('symbol')) {
+        <mat-error>Add a symbol, for example ! or #.</mat-error>
+      } @else if (form.controls.password.hasError('server')) {
+        <mat-error>{{ form.controls.password.getError('server') }}</mat-error>
+      }
+    </mat-form-field>
+
+    <button mat-flat-button type="submit" class="submit" [disabled]="pending()">
+      @if (pending()) {
+        <mat-spinner diameter="18" aria-hidden="true" />
+        Creating account
+      } @else {
+        Create account
+      }
+    </button>
+  </form>
+
+  <p class="switch">Already registered? <a routerLink="/login">Sign in</a></p>
+</app-auth-layout>

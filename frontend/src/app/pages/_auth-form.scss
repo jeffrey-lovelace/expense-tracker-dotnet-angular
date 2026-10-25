@@ -1,0 +1,55 @@
+// Shared by the login and register pages, which have the same form layout.
+
+.lead {
+  margin: var(--et-space-2) 0 var(--et-space-6);
+  color: var(--et-ink-muted);
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--et-space-1);
+}
+
+mat-form-field {
+  width: 100%;
+}
+
+.form-error {
+  margin: 0 0 var(--et-space-4);
+  padding: var(--et-space-3) var(--et-space-4);
+  border-left: 3px solid var(--et-danger);
+  background: var(--et-surface);
+  color: var(--et-ink);
+}
+
+.hint {
+  margin: calc(-1 * var(--et-space-1)) 0 var(--et-space-3);
+  color: var(--et-ink-muted);
+}
+
+.submit {
+  margin-top: var(--et-space-2);
+  height: 44px;
+}
+
+mat-spinner {
+  display: inline-block;
+  margin-right: var(--et-space-2);
+  vertical-align: middle;
+}
+
+.switch {
+  margin: var(--et-space-6) 0 0;
+}
+
+.demo {
+  margin-top: var(--et-space-8);
+  padding-top: var(--et-space-4);
+  border-top: 1px solid var(--et-rule);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--et-space-2) var(--et-space-4);
+  align-items: baseline;
+  color: var(--et-ink-muted);
+}

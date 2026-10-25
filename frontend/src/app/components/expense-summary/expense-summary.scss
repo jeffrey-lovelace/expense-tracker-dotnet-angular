@@ -1,0 +1,24 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--et-space-2);
+}
+
+.et-label {
+  margin: 0;
+}
+
+.total {
+  margin: 0;
+  font-family: var(--et-font-serif);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.count {
+  margin: 0;
+  color: var(--et-ink-muted);
+}
+
+.count-skeleton {
+  margin-top: var(--et-space-1);
+}

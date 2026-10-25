@@ -1,0 +1,32 @@
+<form [formGroup]="form" class="filters" aria-label="Filter expenses">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="category">
+    <mat-label>Category</mat-label>
+    <mat-select formControlName="category">
+      <mat-option [value]="null">All categories</mat-option>
+      @for (category of categories(); track category.value) {
+        <mat-option [value]="category.value">
+          <span class="option" [attr.data-category]="category.value">
+            <span class="et-marker"></span>{{ category.label }}
+          </span>
+        </mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="range">
+    <mat-label>Date range</mat-label>
+    <mat-date-range-input [rangePicker]="picker" [max]="today">
+      <input matStartDate formControlName="from" placeholder="From" aria-label="From date" />
+      <input matEndDate formControlName="to" placeholder="To" aria-label="To date" />
+    </mat-date-range-input>
+    <mat-datepicker-toggle matIconSuffix [for]="picker" />
+    <mat-date-range-picker #picker />
+  </mat-form-field>
+
+  @if (hasFilters()) {
+    <button mat-button type="button" class="clear" (click)="clear()">
+      <mat-icon>close</mat-icon>
+      Clear filters
+    </button>
+  }
+</form>

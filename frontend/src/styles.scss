@@ -1,1 +1,44 @@
-/* You can add global styles to this file, and also import other style files */
+// Global styles. Fonts and icons are self-hosted (angular.json "styles"), so nothing loads from a CDN.
+
+@use './styles/tokens';
+@use './styles/theme';
+@use './styles/typography';
+@use './styles/components';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--et-paper);
+  color: var(--et-ink);
+  font: 400 16px / 24px var(--et-font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--et-primary);
+}
+
+// One visible focus style everywhere, in the accent color (never used for text: contrast).
+:focus-visible {
+  outline: 2px solid var(--et-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

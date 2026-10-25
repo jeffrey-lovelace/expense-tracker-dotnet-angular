@@ -1,0 +1,27 @@
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--et-space-3);
+}
+
+.category,
+.range {
+  flex: 1 1 100%;
+}
+
+.option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--et-space-2);
+}
+
+@media (min-width: 600px) {
+  .category {
+    flex: 0 1 220px;
+  }
+
+  .range {
+    flex: 0 1 300px;
+  }
+}

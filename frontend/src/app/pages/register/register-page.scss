@@ -1,0 +1,6 @@
+@use '../auth-form';
+
+// The password hint is two lines on narrow screens; leave room before the button.
+mat-form-field:last-of-type {
+  margin-bottom: var(--et-space-4);
+}

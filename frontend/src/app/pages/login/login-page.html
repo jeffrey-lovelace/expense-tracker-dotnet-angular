@@ -1,0 +1,49 @@
+<app-auth-layout>
+  <h1>Sign in</h1>
+  <p class="lead">Welcome back. Your ledger is where you left it.</p>
+
+  @if (formError(); as message) {
+    <p class="form-error" role="alert">{{ message }}</p>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <mat-form-field appearance="outline">
+      <mat-label>Email</mat-label>
+      <input matInput type="email" formControlName="email" autocomplete="email" />
+      @if (form.controls.email.hasError('required')) {
+        <mat-error>Enter your email.</mat-error>
+      } @else if (form.controls.email.hasError('email')) {
+        <mat-error>Enter a valid email address.</mat-error>
+      } @else if (form.controls.email.hasError('server')) {
+        <mat-error>{{ form.controls.email.getError('server') }}</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Password</mat-label>
+      <input matInput type="password" formControlName="password" autocomplete="current-password" />
+      @if (form.controls.password.hasError('required')) {
+        <mat-error>Enter your password.</mat-error>
+      } @else if (form.controls.password.hasError('server')) {
+        <mat-error>{{ form.controls.password.getError('server') }}</mat-error>
+      }
+    </mat-form-field>
+
+    <button mat-flat-button type="submit" class="submit" [disabled]="pending()">
+      @if (pending()) {
+        <mat-spinner diameter="18" aria-hidden="true" />
+        Signing in
+      } @else {
+        Sign in
+      }
+    </button>
+  </form>
+
+  <p class="switch">New here? <a routerLink="/register">Create an account</a></p>
+
+  <aside class="demo et-body-small" aria-label="Demo account">
+    <span class="et-label">Demo account</span>
+    <span class="et-mono">demo&#64;ballastlane.com</span>
+    <span class="et-mono">Demo123!</span>
+  </aside>
+</app-auth-layout>

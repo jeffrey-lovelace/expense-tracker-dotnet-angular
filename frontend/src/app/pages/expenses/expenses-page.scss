@@ -1,0 +1,22 @@
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--et-space-4);
+  margin-bottom: var(--et-space-8);
+}
+
+.add {
+  height: 44px;
+}
+
+.filters {
+  display: block;
+  margin-bottom: var(--et-space-6);
+}
+
+mat-paginator {
+  margin-top: var(--et-space-2);
+  background: transparent;
+}
